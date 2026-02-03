@@ -1,0 +1,20 @@
+{
+  "name": "datadog-metrics-fetcher",
+  "version": "1.0.0",
+  "description": "Script to fetch Datadog metrics and endpoint data",
+  "main": "fetchdatadogmetrics.js",
+  "type": "module",
+  "scripts": {
+    "start": "node fetchdatadogmetrics.js",
+    "fetch-endpoints": "node fetchdatadogmetrics.js",
+    "confluence-report": "node src/scripts/confluenceReport.js",
+    "confluence-upload": "node src/scripts/confluenceReport.js --upload",
+    "confluence-summary": "node src/scripts/confluenceReport.js --template summary --upload"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.0"
+  },
+  "author": "",
+  "license": "ISC"
+}
