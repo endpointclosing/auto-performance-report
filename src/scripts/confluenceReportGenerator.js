@@ -113,8 +113,14 @@ class ConfluenceReportGenerator {
         // Base logs URL
         const baseUrl = 'https://endpointclosing.datadoghq.com/logs';
         
-        // Create search query for service (URL encoded format)
-        const query = `env:${environment} service:${service}`;
+        // Use the successful query from error metrics if available, otherwise fallback to default
+        let query;
+        if (data.errorMetrics?.logSummary?.successfulQuery) {
+            query = data.errorMetrics.logSummary.successfulQuery;
+        } else {
+            // Fallback to default query format
+            query = `service:${service} status:error OR level:error env:${environment}`;
+        }
         
         const params = new URLSearchParams({
             'query': query,

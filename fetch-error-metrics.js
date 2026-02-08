@@ -333,6 +333,7 @@ const fetchErrorMetrics = async (service, from, to) => {
             },
             logSummary: {
                 totalLogErrors: logs.length,
+                successfulQuery: successfulQuery || null, // Save which query worked
                 errorsByType: logErrorsByTypeArray,
                 errorsByMessage: logErrorsByMessageArray.slice(0, 20) // Top 20 messages
             },
