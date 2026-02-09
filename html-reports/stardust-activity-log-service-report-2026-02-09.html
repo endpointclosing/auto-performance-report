@@ -154,12 +154,12 @@
                 <div class="endpoint-section">
                     <div class="endpoint-header" onclick="toggleEndpoint(0)">
                         <div>
-                            <h3>1. get /api/v1/activity-logs</h3>
+                            <h3>1. get /api/v1/activity-logs/transactions/:transactionid/actors</h3>
                         </div>
                         <div style="display: flex; align-items: center; gap: 30px;">
                             <div class="endpoint-stats">
                                 <div>Rate: <span>0.28 req/s</span></div>
-                                <div>P95: <span>637.9 ms</span></div>
+                                <div>P95: <span>382.4 ms</span></div>
                                 <div>Requests: <span>50</span></div>
                             </div>
                             <span class="toggle-icon" id="toggle-0">▼</span>
@@ -177,11 +177,11 @@
                             </div>
                             <div class="stat-card">
                                 <label>P95 Latency</label>
-                                <value>637.9 ms</value>
+                                <value>382.4 ms</value>
                             </div>
                             <div class="stat-card">
                                 <label>P99 Latency</label>
-                                <value>637.9 ms</value>
+                                <value>382.4 ms</value>
                             </div>
                         </div>
                         
@@ -201,12 +201,12 @@
                 <div class="endpoint-section">
                     <div class="endpoint-header" onclick="toggleEndpoint(1)">
                         <div>
-                            <h3>2. get /api/v1/activity-logs/:eventid</h3>
+                            <h3>2. get /api/v1/activity-logs</h3>
                         </div>
                         <div style="display: flex; align-items: center; gap: 30px;">
                             <div class="endpoint-stats">
                                 <div>Rate: <span>0.28 req/s</span></div>
-                                <div>P95: <span>7.8 ms</span></div>
+                                <div>P95: <span>637.9 ms</span></div>
                                 <div>Requests: <span>50</span></div>
                             </div>
                             <span class="toggle-icon" id="toggle-1">▼</span>
@@ -224,11 +224,11 @@
                             </div>
                             <div class="stat-card">
                                 <label>P95 Latency</label>
-                                <value>7.8 ms</value>
+                                <value>637.9 ms</value>
                             </div>
                             <div class="stat-card">
                                 <label>P99 Latency</label>
-                                <value>7.8 ms</value>
+                                <value>637.9 ms</value>
                             </div>
                         </div>
                         
@@ -248,12 +248,12 @@
                 <div class="endpoint-section">
                     <div class="endpoint-header" onclick="toggleEndpoint(2)">
                         <div>
-                            <h3>3. get /api/v1/activity-logs/transactions/:transactionid/actors</h3>
+                            <h3>3. get /api/v1/activity-logs/:eventid</h3>
                         </div>
                         <div style="display: flex; align-items: center; gap: 30px;">
                             <div class="endpoint-stats">
                                 <div>Rate: <span>0.28 req/s</span></div>
-                                <div>P95: <span>382.4 ms</span></div>
+                                <div>P95: <span>7.8 ms</span></div>
                                 <div>Requests: <span>50</span></div>
                             </div>
                             <span class="toggle-icon" id="toggle-2">▼</span>
@@ -271,11 +271,11 @@
                             </div>
                             <div class="stat-card">
                                 <label>P95 Latency</label>
-                                <value>382.4 ms</value>
+                                <value>7.8 ms</value>
                             </div>
                             <div class="stat-card">
                                 <label>P99 Latency</label>
-                                <value>382.4 ms</value>
+                                <value>7.8 ms</value>
                             </div>
                         </div>
                         
@@ -318,7 +318,7 @@
         }
         
         // Scatter plot data
-        const scatterData = [{"x":0.28,"y":637.9,"label":"get_/api/v1/activity-logs","color":"#632CA6"},{"x":0.28,"y":7.8,"label":"get_/api/v1/activity-logs/:eventid","color":"#F84D8C"},{"x":0.28,"y":382.4,"label":"get_/api/v1/activity-logs/transactions/:transactionid/actors","color":"#19A974"}];
+        const scatterData = [{"x":0.28,"y":382.4,"label":"get_/api/v1/activity-logs/transactions/:transactionid/actors","color":"#632CA6"},{"x":0.28,"y":637.9,"label":"get_/api/v1/activity-logs","color":"#F84D8C"},{"x":0.28,"y":7.8,"label":"get_/api/v1/activity-logs/:eventid","color":"#19A974"}];
         
         const colors = ["#632CA6","#F84D8C","#19A974","#E8871E","#3D4EB8","#C93854","#137CBD","#00BF87","#DB3737","#8F398F"];
         
@@ -402,10 +402,10 @@
         
         // Initialize endpoint charts
         function initializeEndpointCharts(index) {
-            const endpoints = ["get_/api/v1/activity-logs","get_/api/v1/activity-logs/:eventid","get_/api/v1/activity-logs/transactions/:transactionid/actors"];
+            const endpoints = ["get_/api/v1/activity-logs/transactions/:transactionid/actors","get_/api/v1/activity-logs","get_/api/v1/activity-logs/:eventid"];
             const endpoint = endpoints[index];
-            const timeSeries = {"get_/api/v1/activity-logs":[{"timestamp":1770059070000,"value":255.5},{"timestamp":1770059080000,"value":637.9},{"timestamp":1770059090000,"value":173.4},{"timestamp":1770059100000,"value":232.8},{"timestamp":1770059110000,"value":66.3},{"timestamp":1770059120000,"value":26.2}],"get_/api/v1/activity-logs/:eventid":[{"timestamp":1770059070000,"value":6.1},{"timestamp":1770059080000,"value":6.4},{"timestamp":1770059090000,"value":5.4},{"timestamp":1770059100000,"value":6.6},{"timestamp":1770059110000,"value":7.8},{"timestamp":1770059120000,"value":5.4}],"get_/api/v1/activity-logs/transactions/:transactionid/actors":[{"timestamp":1770059070000,"value":382.4},{"timestamp":1770059080000,"value":240.2},{"timestamp":1770059090000,"value":196.3},{"timestamp":1770059100000,"value":137.4},{"timestamp":1770059110000,"value":9.1},{"timestamp":1770059120000,"value":7.2}]};
-            const rateTimeSeries = {"get_/api/v1/activity-logs":[{"timestamp":1770059070000,"value":0.4},{"timestamp":1770059080000,"value":0.9},{"timestamp":1770059090000,"value":0.9},{"timestamp":1770059100000,"value":1.4},{"timestamp":1770059110000,"value":1.1},{"timestamp":1770059120000,"value":0.3}],"get_/api/v1/activity-logs/:eventid":[{"timestamp":1770059070000,"value":0.3},{"timestamp":1770059080000,"value":0.8},{"timestamp":1770059090000,"value":1.1},{"timestamp":1770059100000,"value":1.2},{"timestamp":1770059110000,"value":1.1},{"timestamp":1770059120000,"value":0.5}],"get_/api/v1/activity-logs/transactions/:transactionid/actors":[{"timestamp":1770059070000,"value":0.4},{"timestamp":1770059080000,"value":0.9},{"timestamp":1770059090000,"value":1},{"timestamp":1770059100000,"value":1.3},{"timestamp":1770059110000,"value":1.1},{"timestamp":1770059120000,"value":0.3}]};
+            const timeSeries = {"get_/api/v1/activity-logs/transactions/:transactionid/actors":[{"timestamp":1770059070000,"value":382.4},{"timestamp":1770059080000,"value":240.2},{"timestamp":1770059090000,"value":196.3},{"timestamp":1770059100000,"value":137.4},{"timestamp":1770059110000,"value":9.1},{"timestamp":1770059120000,"value":7.2}],"get_/api/v1/activity-logs":[{"timestamp":1770059070000,"value":255.5},{"timestamp":1770059080000,"value":637.9},{"timestamp":1770059090000,"value":173.4},{"timestamp":1770059100000,"value":232.8},{"timestamp":1770059110000,"value":66.3},{"timestamp":1770059120000,"value":26.2}],"get_/api/v1/activity-logs/:eventid":[{"timestamp":1770059070000,"value":6.1},{"timestamp":1770059080000,"value":6.4},{"timestamp":1770059090000,"value":5.4},{"timestamp":1770059100000,"value":6.6},{"timestamp":1770059110000,"value":7.8},{"timestamp":1770059120000,"value":5.4}]};
+            const rateTimeSeries = {"get_/api/v1/activity-logs/transactions/:transactionid/actors":[{"timestamp":1770059070000,"value":0.4},{"timestamp":1770059080000,"value":0.9},{"timestamp":1770059090000,"value":1},{"timestamp":1770059100000,"value":1.3},{"timestamp":1770059110000,"value":1.1},{"timestamp":1770059120000,"value":0.3}],"get_/api/v1/activity-logs":[{"timestamp":1770059070000,"value":0.4},{"timestamp":1770059080000,"value":0.9},{"timestamp":1770059090000,"value":0.9},{"timestamp":1770059100000,"value":1.4},{"timestamp":1770059110000,"value":1.1},{"timestamp":1770059120000,"value":0.3}],"get_/api/v1/activity-logs/:eventid":[{"timestamp":1770059070000,"value":0.3},{"timestamp":1770059080000,"value":0.8},{"timestamp":1770059090000,"value":1.1},{"timestamp":1770059100000,"value":1.2},{"timestamp":1770059110000,"value":1.1},{"timestamp":1770059120000,"value":0.5}]};
             
             const p95Data = timeSeries[endpoint] || [];
             const rateData = rateTimeSeries[endpoint] || [];
