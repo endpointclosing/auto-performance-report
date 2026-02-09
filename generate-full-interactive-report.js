@@ -489,11 +489,23 @@ htmlContent += `
 </body>
 </html>`;
 
-// Save the HTML file
-const outputPath = './complete-interactive-report.html';
+// Save the HTML file with service-specific name in html-reports folder
+const serviceName = data.service || 'report';
+const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+const htmlReportsDir = './html-reports';
+
+// Create html-reports folder if it doesn't exist
+if (!fs.existsSync(htmlReportsDir)) {
+    fs.mkdirSync(htmlReportsDir, { recursive: true });
+    console.log(`📁 Created folder: ${htmlReportsDir}\n`);
+}
+
+const outputPath = `${htmlReportsDir}/${serviceName}-report-${timestamp}.html`;
 fs.writeFileSync(outputPath, htmlContent);
 
 console.log(`✅ Interactive HTML report generated!`);
 console.log(`📁 File: ${outputPath}`);
+console.log(`🔖 Service: ${serviceName}`);
+console.log(`📅 Date: ${timestamp}`);
 console.log(`\n💡 Open this file in your browser for full interactive charts!`);
 console.log(`📎 You can share this file or host it on a web server for access from Confluence.`);

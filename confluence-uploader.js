@@ -178,13 +178,20 @@ async function uploadReport() {
             console.warn('⚠️  Could not generate interactive HTML report');
         }
         
-        const htmlReportPath = './complete-interactive-report.html';
-        if (fs.existsSync(htmlReportPath)) {
-            console.log('📎 Uploading interactive HTML report as attachment...');
-            await generator.uploadAttachment(customTitle, htmlReportPath, 'Interactive Performance Report with full Chart.js visualizations');
+        // Create a copy of the service-specific report as "complete-interactive-report.html" for download
+        const serviceName = data.service || 'report';
+        const timestamp = new Date().toISOString().split('T')[0];
+        const serviceSpecificPath = `./html-reports/${serviceName}-report-${timestamp}.html`;
+        const genericPath = './complete-interactive-report.html';
+        
+        if (fs.existsSync(serviceSpecificPath)) {
+            // Copy service-specific file to generic name for Confluence download
+            fs.copyFileSync(serviceSpecificPath, genericPath);
+            console.log(`📎 Uploading interactive HTML report as attachment: complete-interactive-report.html`);
+            await generator.uploadAttachment(customTitle, genericPath, 'Interactive Performance Report with full Chart.js visualizations');
             console.log('✅ Interactive report attached successfully');
         } else {
-            console.log('⚠️  Interactive HTML report not found.');
+            console.log(`⚠️  Interactive HTML report not found at: ${serviceSpecificPath}`);
         }
 
         console.log('\n🎉 Report uploaded successfully to Confluence!');

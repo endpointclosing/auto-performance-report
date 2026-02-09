@@ -266,14 +266,27 @@ class ConfluenceReportGenerator {
     generateP95ChartSection(data) {
         let content = '<h2 style="' + this.getFontStyles().headerFont + ' color: #172B4D; border-bottom: 3px solid #0052CC; padding-bottom: 8px; margin-top: 30px; font-weight: bold;"><span style="background-color: #0052CC; color: white; padding: 4px 12px; border-radius: 3px;">📊 P95 Latency Time Series Analysis</span></h2>';
         
-        // Add interactive report download link in a styled box
+        // Generate unique GitHub Pages URL (service-specific)
+        const serviceName = data.service || 'report';
+        const timestamp = new Date().toISOString().split('T')[0];
+        const htmlFileName = `${serviceName}-report-${timestamp}.html`;
+        const githubPagesUrl = `https://endpointclosing.github.io/auto-performance-report/html-reports/${htmlFileName}`;
+        
+        // Add interactive report download link and view in browser button in a styled box
         content += '<div style="background-color: #F4F5F7; border-left: 4px solid #00875A; padding: 12px 20px; margin: 15px 0; border-radius: 3px;">';
-        content += '<p style="margin: 0;"><strong>📥 Download Interactive Report:</strong> ';
+        content += '<p style="margin: 0 0 10px 0;"><strong>📥 Download Interactive Report:</strong> ';
         content += '<ac:link>';
         content += '<ri:attachment ri:filename="complete-interactive-report.html"/>';
         content += '<ac:plain-text-link-body><![CDATA[complete-interactive-report.html]]></ac:plain-text-link-body>';
         content += '</ac:link>';
         content += ' for real-time hover tooltips</p>';
+        
+        // Add View in Browser button with unique service URL
+        content += '<p style="margin: 0;">';
+        content += `<a href="${githubPagesUrl}" target="_blank" style="display: inline-block; background-color: #0052CC; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-weight: bold;">`;
+        content += '🌐 View in Browser';
+        content += '</a>';
+        content += '</p>';
         content += '</div>';
         content += '<style>a[href] { font-weight: bold; }</style>';
         
