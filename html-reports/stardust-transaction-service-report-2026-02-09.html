@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>stardust-transaction-service - Interactive Performance Report</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f6f7;
+            padding: 20px;
+            color: #172B4D;
+        }
+        .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px 8px 0 0;
+        }
+        .header h1 { font-size: 28px; margin-bottom: 10px; }
+        .header p { opacity: 0.9; font-size: 14px; }
+        .content { padding: 30px; }
+        .section { margin-bottom: 40px; }
+        .section h2 { 
+            font-size: 20px; 
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #E8E8E8;
+            color: #172B4D;
+        }
+        .chart-container { 
+            position: relative; 
+            height: 400px;
+            margin-bottom: 30px;
+            background: #fafbfc;
+            padding: 20px;
+            border-radius: 6px;
+            border: 1px solid #e8e8e8;
+        }
+        .endpoint-section {
+            margin-bottom: 30px;
+            border: 1px solid #e8e8e8;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .endpoint-header {
+            background: #f4f5f7;
+            padding: 15px 20px;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        .endpoint-header:hover { background: #ebecf0; }
+        .endpoint-header h3 { font-size: 16px; color: #172B4D; }
+        .endpoint-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+            color: #5E6C84;
+        }
+        .endpoint-stats span { font-weight: 600; color: #172B4D; }
+        .endpoint-content {
+            padding: 20px;
+            display: none;
+        }
+        .endpoint-content.active { display: block; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: #f4f5f7;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 3px solid #0052CC;
+        }
+        .stat-card label { 
+            display: block;
+            font-size: 12px;
+            color: #5E6C84;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-card value { 
+            display: block;
+            font-size: 20px;
+            font-weight: 600;
+            color: #172B4D;
+        }
+        .chart-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .chart-box {
+            position: relative;
+            height: 300px;
+            background: #fafbfc;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e8e8e8;
+        }
+        .chart-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #172B4D;
+            margin-bottom: 10px;
+        }
+        .toggle-icon {
+            font-size: 20px;
+            transition: transform 0.3s;
+        }
+        .toggle-icon.active { transform: rotate(180deg); }
+        @media (max-width: 768px) {
+            .chart-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 stardust-transaction-service - Performance Report</h1>
+            <p>📅 Jan 6, 10:40 am – Jan 6, 11:11 am</p>
+            <p>🌐 Environment: Staging</p>
+        </div>
+        
+        <div class="content">
+            <!-- Scatter Plot Section -->
+            <div class="section">
+                <h2>📊 Request Rate vs P95 Latency Correlation</h2>
+                <div class="chart-container">
+                    <canvas id="scatterChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Individual Endpoints -->
+            <div class="section">
+                <h2>📈 Individual Endpoint Analysis</h2>
+                <p style="color: #5E6C84; margin-bottom: 20px; font-size: 14px;">
+                    Click on any endpoint to expand and view interactive Rate and P95 time series charts
+                </p>
+
+                <div class="endpoint-section">
+                    <div class="endpoint-header" onclick="toggleEndpoint(0)">
+                        <div>
+                            <h3>1. post /mcp</h3>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 30px;">
+                            <div class="endpoint-stats">
+                                <div>Rate: <span>1.20 req/s</span></div>
+                                <div>P95: <span>18.3 ms</span></div>
+                                <div>Requests: <span>2231</span></div>
+                            </div>
+                            <span class="toggle-icon" id="toggle-0">▼</span>
+                        </div>
+                    </div>
+                    <div class="endpoint-content" id="content-0">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <label>Request Rate</label>
+                                <value>1.20 hits/s</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>Total Requests</label>
+                                <value>2231</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P95 Latency</label>
+                                <value>18.3 ms</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P99 Latency</label>
+                                <value>112.4 ms</value>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-row">
+                            <div class="chart-box">
+                                <div class="chart-title">📊 Request Rate Over Time</div>
+                                <canvas id="rateChart-0"></canvas>
+                            </div>
+                            <div class="chart-box">
+                                <div class="chart-title">📈 P95 Latency Over Time</div>
+                                <canvas id="p95Chart-0"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    
+                <div class="endpoint-section">
+                    <div class="endpoint-header" onclick="toggleEndpoint(1)">
+                        <div>
+                            <h3>2. post /api/v1/transactions</h3>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 30px;">
+                            <div class="endpoint-stats">
+                                <div>Rate: <span>0.71 req/s</span></div>
+                                <div>P95: <span>91.8 ms</span></div>
+                                <div>Requests: <span>1320</span></div>
+                            </div>
+                            <span class="toggle-icon" id="toggle-1">▼</span>
+                        </div>
+                    </div>
+                    <div class="endpoint-content" id="content-1">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <label>Request Rate</label>
+                                <value>0.71 hits/s</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>Total Requests</label>
+                                <value>1320</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P95 Latency</label>
+                                <value>91.8 ms</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P99 Latency</label>
+                                <value>243.9 ms</value>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-row">
+                            <div class="chart-box">
+                                <div class="chart-title">📊 Request Rate Over Time</div>
+                                <canvas id="rateChart-1"></canvas>
+                            </div>
+                            <div class="chart-box">
+                                <div class="chart-title">📈 P95 Latency Over Time</div>
+                                <canvas id="p95Chart-1"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    
+                <div class="endpoint-section">
+                    <div class="endpoint-header" onclick="toggleEndpoint(2)">
+                        <div>
+                            <h3>3. get /api/v1/transactions/:transactionid</h3>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 30px;">
+                            <div class="endpoint-stats">
+                                <div>Rate: <span>5.44 req/s</span></div>
+                                <div>P95: <span>475.1 ms</span></div>
+                                <div>Requests: <span>10121</span></div>
+                            </div>
+                            <span class="toggle-icon" id="toggle-2">▼</span>
+                        </div>
+                    </div>
+                    <div class="endpoint-content" id="content-2">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <label>Request Rate</label>
+                                <value>5.44 hits/s</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>Total Requests</label>
+                                <value>10121</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P95 Latency</label>
+                                <value>475.1 ms</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P99 Latency</label>
+                                <value>830.2 ms</value>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-row">
+                            <div class="chart-box">
+                                <div class="chart-title">📊 Request Rate Over Time</div>
+                                <canvas id="rateChart-2"></canvas>
+                            </div>
+                            <div class="chart-box">
+                                <div class="chart-title">📈 P95 Latency Over Time</div>
+                                <canvas id="p95Chart-2"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    
+                <div class="endpoint-section">
+                    <div class="endpoint-header" onclick="toggleEndpoint(3)">
+                        <div>
+                            <h3>4. patch /api/v1/transactions/:transactionid</h3>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 30px;">
+                            <div class="endpoint-stats">
+                                <div>Rate: <span>0.71 req/s</span></div>
+                                <div>P95: <span>135.3 ms</span></div>
+                                <div>Requests: <span>1320</span></div>
+                            </div>
+                            <span class="toggle-icon" id="toggle-3">▼</span>
+                        </div>
+                    </div>
+                    <div class="endpoint-content" id="content-3">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <label>Request Rate</label>
+                                <value>0.71 hits/s</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>Total Requests</label>
+                                <value>1320</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P95 Latency</label>
+                                <value>135.3 ms</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P99 Latency</label>
+                                <value>298.4 ms</value>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-row">
+                            <div class="chart-box">
+                                <div class="chart-title">📊 Request Rate Over Time</div>
+                                <canvas id="rateChart-3"></canvas>
+                            </div>
+                            <div class="chart-box">
+                                <div class="chart-title">📈 P95 Latency Over Time</div>
+                                <canvas id="p95Chart-3"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    
+                <div class="endpoint-section">
+                    <div class="endpoint-header" onclick="toggleEndpoint(4)">
+                        <div>
+                            <h3>5. get /api/v1/transactions</h3>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 30px;">
+                            <div class="endpoint-stats">
+                                <div>Rate: <span>0.71 req/s</span></div>
+                                <div>P95: <span>112.4 ms</span></div>
+                                <div>Requests: <span>1321</span></div>
+                            </div>
+                            <span class="toggle-icon" id="toggle-4">▼</span>
+                        </div>
+                    </div>
+                    <div class="endpoint-content" id="content-4">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <label>Request Rate</label>
+                                <value>0.71 hits/s</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>Total Requests</label>
+                                <value>1321</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P95 Latency</label>
+                                <value>112.4 ms</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P99 Latency</label>
+                                <value>193.3 ms</value>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-row">
+                            <div class="chart-box">
+                                <div class="chart-title">📊 Request Rate Over Time</div>
+                                <canvas id="rateChart-4"></canvas>
+                            </div>
+                            <div class="chart-box">
+                                <div class="chart-title">📈 P95 Latency Over Time</div>
+                                <canvas id="p95Chart-4"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Toggle endpoint sections
+        function toggleEndpoint(index) {
+            const content = document.getElementById('content-' + index);
+            const icon = document.getElementById('toggle-' + index);
+            
+            if (content.classList.contains('active')) {
+                content.classList.remove('active');
+                icon.classList.remove('active');
+            } else {
+                content.classList.add('active');
+                icon.classList.add('active');
+                
+                // Initialize charts when opened for the first time
+                if (!content.dataset.initialized) {
+                    initializeEndpointCharts(index);
+                    content.dataset.initialized = 'true';
+                }
+            }
+        }
+        
+        // Scatter plot data
+        const scatterData = [{"x":1.2,"y":18.3,"label":"post_/mcp","color":"#632CA6"},{"x":0.71,"y":91.8,"label":"post_/api/v1/transactions","color":"#F84D8C"},{"x":5.44,"y":475.1,"label":"get_/api/v1/transactions/:transactionid","color":"#19A974"},{"x":0.71,"y":135.3,"label":"patch_/api/v1/transactions/:transactionid","color":"#E8871E"},{"x":0.71,"y":112.4,"label":"get_/api/v1/transactions","color":"#3D4EB8"}];
+        
+        const colors = ["#632CA6","#F84D8C","#19A974","#E8871E","#3D4EB8","#C93854","#137CBD","#00BF87","#DB3737","#8F398F"];
+        
+        // Create scatter plot
+        const scatterCtx = document.getElementById('scatterChart').getContext('2d');
+        const scatterChart = new Chart(scatterCtx, {
+            type: 'scatter',
+            data: {
+                datasets: scatterData.map((point, idx) => ({
+                    label: point.label.replace(/_/g, ' '),
+                    data: [{ x: point.x, y: point.y }],
+                    backgroundColor: point.color,
+                    borderColor: point.color,
+                    borderWidth: 2,
+                    pointRadius: 8,
+                    pointHoverRadius: 12
+                }))
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Request Rate vs P95 Latency',
+                        font: { size: 18, weight: 'bold' }
+                    },
+                    legend: {
+                        display: true,
+                        position: 'right',
+                        labels: { font: { size: 11 }, boxWidth: 12, padding: 10 },
+                        onClick: function(e, legendItem, legend) {
+                            const index = legendItem.datasetIndex;
+                            const chart = legend.chart;
+                            
+                            // Check if this is the only visible dataset
+                            const visibleCount = chart.data.datasets.filter((ds, i) => chart.isDatasetVisible(i)).length;
+                            const isOnlyOneVisible = visibleCount === 1 && chart.isDatasetVisible(index);
+                            
+                            if (isOnlyOneVisible) {
+                                // If only this one is visible, show all
+                                chart.data.datasets.forEach((dataset, i) => {
+                                    chart.show(i);
+                                });
+                            } else {
+                                // Hide all others, show only this one
+                                chart.data.datasets.forEach((dataset, i) => {
+                                    if (i === index) {
+                                        chart.show(i);
+                                    } else {
+                                        chart.hide(i);
+                                    }
+                                });
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.9)',
+                        padding: 12,
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.parsed.x.toFixed(2) + ' req/s, P95: ' + context.parsed.y.toFixed(1) + ' ms';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Request Rate (hits/s)', font: { size: 14, weight: '600' } },
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.05)' }
+                    },
+                    y: {
+                        title: { display: true, text: 'P95 Latency (ms)', font: { size: 14, weight: '600' } },
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.05)' }
+                    }
+                }
+            }
+        });
+        
+        // Initialize endpoint charts
+        function initializeEndpointCharts(index) {
+            const endpoints = ["post_/mcp","post_/api/v1/transactions","get_/api/v1/transactions/:transactionid","patch_/api/v1/transactions/:transactionid","get_/api/v1/transactions"];
+            const endpoint = endpoints[index];
+            const timeSeries = {"post_/mcp":[{"timestamp":1767676210000,"value":5.1},{"timestamp":1767676220000,"value":5.9},{"timestamp":1767676230000,"value":4.1},{"timestamp":1767676240000,"value":5.9},{"timestamp":1767676250000,"value":4.8},{"timestamp":1767676260000,"value":4.5},{"timestamp":1767676270000,"value":6.8},{"timestamp":1767676280000,"value":4.7},{"timestamp":1767676290000,"value":5.1},{"timestamp":1767676300000,"value":5.2},{"timestamp":1767676310000,"value":18.9},{"timestamp":1767676320000,"value":4.4},{"timestamp":1767676330000,"value":4.3},{"timestamp":1767676340000,"value":5},{"timestamp":1767676350000,"value":4.8},{"timestamp":1767676360000,"value":5.1},{"timestamp":1767676370000,"value":5},{"timestamp":1767676380000,"value":5.7},{"timestamp":1767676390000,"value":13.6},{"timestamp":1767676400000,"value":15.4},{"timestamp":1767676410000,"value":4.7},{"timestamp":1767676420000,"value":94.7},{"timestamp":1767676430000,"value":5.1},{"timestamp":1767676440000,"value":5},{"timestamp":1767676450000,"value":4.5},{"timestamp":1767676460000,"value":5.5},{"timestamp":1767676470000,"value":4},{"timestamp":1767676480000,"value":4.9},{"timestamp":1767676490000,"value":4.5},{"timestamp":1767676500000,"value":4.9},{"timestamp":1767676510000,"value":5.6},{"timestamp":1767676520000,"value":5.1},{"timestamp":1767676530000,"value":6},{"timestamp":1767676540000,"value":5},{"timestamp":1767676550000,"value":4.7},{"timestamp":1767676560000,"value":5.1},{"timestamp":1767676570000,"value":4.4},{"timestamp":1767676580000,"value":5.4},{"timestamp":1767676590000,"value":5.1},{"timestamp":1767676600000,"value":5.1},{"timestamp":1767676610000,"value":5.1},{"timestamp":1767676620000,"value":4.5},{"timestamp":1767676630000,"value":4.6},{"timestamp":1767676640000,"value":5.3},{"timestamp":1767676650000,"value":4.5},{"timestamp":1767676660000,"value":6.6},{"timestamp":1767676670000,"value":5.5},{"timestamp":1767676680000,"value":4.8},{"timestamp":1767676690000,"value":5.5},{"timestamp":1767676700000,"value":4.8},{"timestamp":1767676710000,"value":5.8},{"timestamp":1767676720000,"value":6.2},{"timestamp":1767676730000,"value":18.9},{"timestamp":1767676740000,"value":15.9},{"timestamp":1767676750000,"value":5.9},{"timestamp":1767676760000,"value":4.3},{"timestamp":1767676770000,"value":3.9},{"timestamp":1767676780000,"value":5.5},{"timestamp":1767676790000,"value":5.1},{"timestamp":1767676800000,"value":5.1},{"timestamp":1767676810000,"value":6.1},{"timestamp":1767676820000,"value":48.6},{"timestamp":1767676830000,"value":4.3},{"timestamp":1767676840000,"value":4.5},{"timestamp":1767676850000,"value":5.1},{"timestamp":1767676860000,"value":5.2},{"timestamp":1767676870000,"value":6.5},{"timestamp":1767676880000,"value":5.2},{"timestamp":1767676890000,"value":5.1},{"timestamp":1767676900000,"value":4.8},{"timestamp":1767676910000,"value":5.8},{"timestamp":1767676920000,"value":5.1},{"timestamp":1767676930000,"value":4.5},{"timestamp":1767676950000,"value":4.7},{"timestamp":1767676960000,"value":6},{"timestamp":1767676970000,"value":6},{"timestamp":1767676980000,"value":4.8},{"timestamp":1767676990000,"value":5.1},{"timestamp":1767677000000,"value":4.8},{"timestamp":1767677010000,"value":5.1},{"timestamp":1767677020000,"value":4.9},{"timestamp":1767677030000,"value":4.5},{"timestamp":1767677040000,"value":4.7},{"timestamp":1767677050000,"value":5.4},{"timestamp":1767677060000,"value":4.7},{"timestamp":1767677070000,"value":4.6},{"timestamp":1767677080000,"value":7.7},{"timestamp":1767677090000,"value":5.1},{"timestamp":1767677100000,"value":6.2},{"timestamp":1767677110000,"value":4.2},{"timestamp":1767677120000,"value":4.7},{"timestamp":1767677130000,"value":4.8},{"timestamp":1767677140000,"value":4.3},{"timestamp":1767677150000,"value":4.7},{"timestamp":1767677160000,"value":5.4},{"timestamp":1767677170000,"value":6.5},{"timestamp":1767677180000,"value":4.8},{"timestamp":1767677190000,"value":4.6},{"timestamp":1767677200000,"value":5.8},{"timestamp":1767677210000,"value":4.7},{"timestamp":1767677220000,"value":4.9},{"timestamp":1767677230000,"value":5.6},{"timestamp":1767677240000,"value":4.9},{"timestamp":1767677250000,"value":5},{"timestamp":1767677260000,"value":5},{"timestamp":1767677270000,"value":5.6},{"timestamp":1767677280000,"value":5.1},{"timestamp":1767677290000,"value":5.3},{"timestamp":1767677300000,"value":102.4},{"timestamp":1767677310000,"value":4.7},{"timestamp":1767677320000,"value":6.8},{"timestamp":1767677330000,"value":4.1},{"timestamp":1767677340000,"value":5.6},{"timestamp":1767677350000,"value":5.6},{"timestamp":1767677360000,"value":97.7},{"timestamp":1767677370000,"value":4.9},{"timestamp":1767677380000,"value":4.5},{"timestamp":1767677390000,"value":5.5},{"timestamp":1767677400000,"value":4.4},{"timestamp":1767677410000,"value":4.5},{"timestamp":1767677420000,"value":5.1},{"timestamp":1767677430000,"value":5.6},{"timestamp":1767677440000,"value":4.7},{"timestamp":1767677450000,"value":100.8},{"timestamp":1767677460000,"value":4.6},{"timestamp":1767677470000,"value":4.5},{"timestamp":1767677480000,"value":5.1},{"timestamp":1767677490000,"value":4.9},{"timestamp":1767677500000,"value":4.6},{"timestamp":1767677510000,"value":5.9},{"timestamp":1767677520000,"value":4.5},{"timestamp":1767677530000,"value":4.9},{"timestamp":1767677540000,"value":4.5},{"timestamp":1767677550000,"value":4.1},{"timestamp":1767677560000,"value":5.2},{"timestamp":1767677570000,"value":5.3},{"timestamp":1767677580000,"value":4.3},{"timestamp":1767677590000,"value":5.5},{"timestamp":1767677600000,"value":5.4},{"timestamp":1767677610000,"value":4.7},{"timestamp":1767677620000,"value":4.9},{"timestamp":1767677630000,"value":4.5},{"timestamp":1767677640000,"value":4.6},{"timestamp":1767677650000,"value":5.3},{"timestamp":1767677660000,"value":18.3},{"timestamp":1767677670000,"value":4.2},{"timestamp":1767677680000,"value":5.6},{"timestamp":1767677690000,"value":5.1},{"timestamp":1767677700000,"value":4.5},{"timestamp":1767677720000,"value":4.8},{"timestamp":1767677730000,"value":4.5},{"timestamp":1767677740000,"value":4.5},{"timestamp":1767677760000,"value":5.6},{"timestamp":1767677770000,"value":4.9},{"timestamp":1767677780000,"value":15},{"timestamp":1767677790000,"value":5.8},{"timestamp":1767677800000,"value":6.4},{"timestamp":1767677820000,"value":5.1},{"timestamp":1767677830000,"value":5.2},{"timestamp":1767677840000,"value":3.3},{"timestamp":1767677850000,"value":6.3},{"timestamp":1767677860000,"value":4.6},{"timestamp":1767677870000,"value":4.3},{"timestamp":1767677880000,"value":112.4},{"timestamp":1767677890000,"value":4.2},{"timestamp":1767677900000,"value":5.8},{"timestamp":1767677910000,"value":12.8},{"timestamp":1767677920000,"value":4.3},{"timestamp":1767677940000,"value":15.7},{"timestamp":1767677950000,"value":5.6},{"timestamp":1767677960000,"value":6.2},{"timestamp":1767677970000,"value":4.9},{"timestamp":1767677980000,"value":5.3},{"timestamp":1767677990000,"value":4.1},{"timestamp":1767678000000,"value":4.6},{"timestamp":1767678010000,"value":5.1},{"timestamp":1767678020000,"value":6.9},{"timestamp":1767678040000,"value":4.7},{"timestamp":1767678050000,"value":6.6}],"post_/api/v1/transactions":[{"timestamp":1767676210000,"value":102.4},{"timestamp":1767676220000,"value":34.6},{"timestamp":1767676230000,"value":44.3},{"timestamp":1767676240000,"value":40.2},{"timestamp":1767676250000,"value":69.5},{"timestamp":1767676260000,"value":42.3},{"timestamp":1767676270000,"value":61.4},{"timestamp":1767676280000,"value":58.9},{"timestamp":1767676290000,"value":59.5},{"timestamp":1767676300000,"value":44.5},{"timestamp":1767676310000,"value":57.7},{"timestamp":1767676320000,"value":35},{"timestamp":1767676330000,"value":45},{"timestamp":1767676340000,"value":40.4},{"timestamp":1767676350000,"value":52.6},{"timestamp":1767676360000,"value":29.8},{"timestamp":1767676370000,"value":67.4},{"timestamp":1767676380000,"value":65},{"timestamp":1767676390000,"value":58.6},{"timestamp":1767676400000,"value":34.3},{"timestamp":1767676410000,"value":53.4},{"timestamp":1767676420000,"value":57.7},{"timestamp":1767676430000,"value":33},{"timestamp":1767676440000,"value":32},{"timestamp":1767676450000,"value":58.6},{"timestamp":1767676460000,"value":62.5},{"timestamp":1767676470000,"value":72.8},{"timestamp":1767676480000,"value":37.4},{"timestamp":1767676490000,"value":41},{"timestamp":1767676500000,"value":36.8},{"timestamp":1767676510000,"value":68.4},{"timestamp":1767676520000,"value":32.3},{"timestamp":1767676530000,"value":34.6},{"timestamp":1767676540000,"value":74.8},{"timestamp":1767676550000,"value":55.1},{"timestamp":1767676560000,"value":51.8},{"timestamp":1767676570000,"value":59.5},{"timestamp":1767676580000,"value":54.2},{"timestamp":1767676590000,"value":53.4},{"timestamp":1767676600000,"value":72.8},{"timestamp":1767676610000,"value":61.4},{"timestamp":1767676620000,"value":62.3},{"timestamp":1767676630000,"value":41},{"timestamp":1767676640000,"value":60.4},{"timestamp":1767676650000,"value":55.9},{"timestamp":1767676660000,"value":41},{"timestamp":1767676670000,"value":51.8},{"timestamp":1767676680000,"value":40.4},{"timestamp":1767676690000,"value":62.3},{"timestamp":1767676700000,"value":69.5},{"timestamp":1767676710000,"value":61.4},{"timestamp":1767676720000,"value":55.9},{"timestamp":1767676730000,"value":61.4},{"timestamp":1767676740000,"value":64.3},{"timestamp":1767676750000,"value":54.2},{"timestamp":1767676760000,"value":94.7},{"timestamp":1767676770000,"value":72.8},{"timestamp":1767676780000,"value":67.4},{"timestamp":1767676790000,"value":41.7},{"timestamp":1767676800000,"value":33},{"timestamp":1767676810000,"value":45.7},{"timestamp":1767676820000,"value":40.4},{"timestamp":1767676830000,"value":115.9},{"timestamp":1767676840000,"value":41.7},{"timestamp":1767676850000,"value":41.7},{"timestamp":1767676860000,"value":45},{"timestamp":1767676870000,"value":36.8},{"timestamp":1767676880000,"value":59.5},{"timestamp":1767676890000,"value":41},{"timestamp":1767676900000,"value":60.4},{"timestamp":1767676910000,"value":50.2},{"timestamp":1767676920000,"value":38.5},{"timestamp":1767676930000,"value":73.9},{"timestamp":1767676940000,"value":32.5},{"timestamp":1767676950000,"value":71.7},{"timestamp":1767676960000,"value":57.7},{"timestamp":1767676970000,"value":50.2},{"timestamp":1767676980000,"value":47.9},{"timestamp":1767676990000,"value":70.6},{"timestamp":1767677000000,"value":40.4},{"timestamp":1767677010000,"value":38},{"timestamp":1767677020000,"value":57.7},{"timestamp":1767677030000,"value":40.4},{"timestamp":1767677040000,"value":68.4},{"timestamp":1767677050000,"value":69.5},{"timestamp":1767677060000,"value":43.6},{"timestamp":1767677070000,"value":40.4},{"timestamp":1767677080000,"value":48.6},{"timestamp":1767677090000,"value":107.2},{"timestamp":1767677100000,"value":55.9},{"timestamp":1767677110000,"value":79.9},{"timestamp":1767677120000,"value":73.9},{"timestamp":1767677130000,"value":66.3},{"timestamp":1767677140000,"value":50.2},{"timestamp":1767677150000,"value":68.4},{"timestamp":1767677160000,"value":71.7},{"timestamp":1767677170000,"value":43.6},{"timestamp":1767677180000,"value":71.7},{"timestamp":1767677190000,"value":61.4},{"timestamp":1767677200000,"value":36.2},{"timestamp":1767677210000,"value":55.9},{"timestamp":1767677220000,"value":40.4},{"timestamp":1767677230000,"value":83.7},{"timestamp":1767677240000,"value":79.9},{"timestamp":1767677250000,"value":66.3},{"timestamp":1767677260000,"value":61.4},{"timestamp":1767677270000,"value":42.3},{"timestamp":1767677280000,"value":59.5},{"timestamp":1767677290000,"value":49.4},{"timestamp":1767677300000,"value":56.8},{"timestamp":1767677310000,"value":56.8},{"timestamp":1767677320000,"value":73.9},{"timestamp":1767677330000,"value":51.8},{"timestamp":1767677340000,"value":70.5},{"timestamp":1767677350000,"value":96.2},{"timestamp":1767677360000,"value":46.4},{"timestamp":1767677370000,"value":47.9},{"timestamp":1767677380000,"value":59.5},{"timestamp":1767677390000,"value":52.6},{"timestamp":1767677400000,"value":58.6},{"timestamp":1767677410000,"value":53.4},{"timestamp":1767677420000,"value":55.1},{"timestamp":1767677430000,"value":59.5},{"timestamp":1767677440000,"value":59.5},{"timestamp":1767677450000,"value":71.7},{"timestamp":1767677460000,"value":90.4},{"timestamp":1767677470000,"value":59.5},{"timestamp":1767677480000,"value":66.3},{"timestamp":1767677490000,"value":58.6},{"timestamp":1767677500000,"value":55.1},{"timestamp":1767677510000,"value":63.3},{"timestamp":1767677520000,"value":58.6},{"timestamp":1767677530000,"value":243.9},{"timestamp":1767677540000,"value":52.6},{"timestamp":1767677550000,"value":67.4},{"timestamp":1767677560000,"value":51},{"timestamp":1767677570000,"value":57.7},{"timestamp":1767677580000,"value":69.5},{"timestamp":1767677590000,"value":47.2},{"timestamp":1767677600000,"value":44.3},{"timestamp":1767677610000,"value":60.4},{"timestamp":1767677620000,"value":53.4},{"timestamp":1767677630000,"value":87.7},{"timestamp":1767677640000,"value":73.3},{"timestamp":1767677650000,"value":71.7},{"timestamp":1767677660000,"value":53.4},{"timestamp":1767677670000,"value":62.3},{"timestamp":1767677680000,"value":55.9},{"timestamp":1767677690000,"value":54.2},{"timestamp":1767677700000,"value":148.5},{"timestamp":1767677710000,"value":47.2},{"timestamp":1767677720000,"value":70.6},{"timestamp":1767677730000,"value":55.9},{"timestamp":1767677740000,"value":47.2},{"timestamp":1767677750000,"value":72.8},{"timestamp":1767677760000,"value":56.8},{"timestamp":1767677770000,"value":68.4},{"timestamp":1767677780000,"value":48.6},{"timestamp":1767677790000,"value":51},{"timestamp":1767677800000,"value":62.3},{"timestamp":1767677810000,"value":59.5},{"timestamp":1767677820000,"value":58.6},{"timestamp":1767677830000,"value":60.4},{"timestamp":1767677840000,"value":38.5},{"timestamp":1767677850000,"value":317.5},{"timestamp":1767677860000,"value":75.1},{"timestamp":1767677870000,"value":45.7},{"timestamp":1767677880000,"value":75.1},{"timestamp":1767677890000,"value":59.5},{"timestamp":1767677900000,"value":39.8},{"timestamp":1767677910000,"value":61.4},{"timestamp":1767677920000,"value":61.4},{"timestamp":1767677930000,"value":62.3},{"timestamp":1767677940000,"value":71.7},{"timestamp":1767677950000,"value":91.8},{"timestamp":1767677960000,"value":43.6},{"timestamp":1767677970000,"value":90.4},{"timestamp":1767677980000,"value":54.2},{"timestamp":1767677990000,"value":37.4},{"timestamp":1767678000000,"value":45}],"get_/api/v1/transactions/:transactionid":[{"timestamp":1767676210000,"value":419.7},{"timestamp":1767676220000,"value":129.2},{"timestamp":1767676230000,"value":267.7},{"timestamp":1767676240000,"value":102.4},{"timestamp":1767676250000,"value":247.7},{"timestamp":1767676260000,"value":89},{"timestamp":1767676270000,"value":153.2},{"timestamp":1767676280000,"value":168.1},{"timestamp":1767676290000,"value":119.5},{"timestamp":1767676300000,"value":289.3},{"timestamp":1767676310000,"value":105.6},{"timestamp":1767676320000,"value":87.7},{"timestamp":1767676330000,"value":107.2},{"timestamp":1767676340000,"value":153.2},{"timestamp":1767676350000,"value":90.4},{"timestamp":1767676360000,"value":232.8},{"timestamp":1767676370000,"value":127.2},{"timestamp":1767676380000,"value":102.4},{"timestamp":1767676390000,"value":263.6},{"timestamp":1767676400000,"value":127.2},{"timestamp":1767676410000,"value":129.2},{"timestamp":1767676420000,"value":460.6},{"timestamp":1767676430000,"value":137.4},{"timestamp":1767676440000,"value":83.7},{"timestamp":1767676450000,"value":376.5},{"timestamp":1767676460000,"value":96.2},{"timestamp":1767676470000,"value":353.9},{"timestamp":1767676480000,"value":70.6},{"timestamp":1767676490000,"value":293.8},{"timestamp":1767676500000,"value":129.2},{"timestamp":1767676510000,"value":104},{"timestamp":1767676520000,"value":376.5},{"timestamp":1767676530000,"value":93.3},{"timestamp":1767676540000,"value":243.9},{"timestamp":1767676550000,"value":190.3},{"timestamp":1767676560000,"value":563.4},{"timestamp":1767676570000,"value":212.2},{"timestamp":1767676580000,"value":276.1},{"timestamp":1767676590000,"value":144},{"timestamp":1767676600000,"value":376.5},{"timestamp":1767676610000,"value":150.8},{"timestamp":1767676620000,"value":158},{"timestamp":1767676630000,"value":155.6},{"timestamp":1767676640000,"value":475.1},{"timestamp":1767676650000,"value":78.7},{"timestamp":1767676660000,"value":276.1},{"timestamp":1767676670000,"value":599.5},{"timestamp":1767676680000,"value":93.3},{"timestamp":1767676690000,"value":303.1},{"timestamp":1767676700000,"value":127.2},{"timestamp":1767676710000,"value":129.2},{"timestamp":1767676720000,"value":657.9},{"timestamp":1767676730000,"value":168.1},{"timestamp":1767676740000,"value":353.9},{"timestamp":1767676750000,"value":104},{"timestamp":1767676760000,"value":146.2},{"timestamp":1767676770000,"value":232.8},{"timestamp":1767676780000,"value":76.3},{"timestamp":1767676790000,"value":263.6},{"timestamp":1767676800000,"value":127.2},{"timestamp":1767676810000,"value":243.9},{"timestamp":1767676820000,"value":413.2},{"timestamp":1767676830000,"value":497.7},{"timestamp":1767676840000,"value":513.4},{"timestamp":1767676850000,"value":413.2},{"timestamp":1767676860000,"value":89},{"timestamp":1767676870000,"value":327.5},{"timestamp":1767676880000,"value":307.8},{"timestamp":1767676890000,"value":178.9},{"timestamp":1767676900000,"value":432.9},{"timestamp":1767676910000,"value":700},{"timestamp":1767676920000,"value":76.3},{"timestamp":1767676930000,"value":400.6},{"timestamp":1767676940000,"value":107.2},{"timestamp":1767676950000,"value":388.4},{"timestamp":1767676960000,"value":400.6},{"timestamp":1767676970000,"value":131.2},{"timestamp":1767676980000,"value":99.2},{"timestamp":1767676990000,"value":376.5},{"timestamp":1767677000000,"value":110.6},{"timestamp":1767677010000,"value":158},{"timestamp":1767677020000,"value":370.7},{"timestamp":1767677030000,"value":348.4},{"timestamp":1767677040000,"value":153.2},{"timestamp":1767677050000,"value":158},{"timestamp":1767677060000,"value":348.4},{"timestamp":1767677070000,"value":187.4},{"timestamp":1767677080000,"value":298.4},{"timestamp":1767677090000,"value":141.8},{"timestamp":1767677100000,"value":307.8},{"timestamp":1767677110000,"value":115.9},{"timestamp":1767677120000,"value":293.8},{"timestamp":1767677130000,"value":181.7},{"timestamp":1767677140000,"value":107.2},{"timestamp":1767677150000,"value":190.3},{"timestamp":1767677160000,"value":497.7},{"timestamp":1767677170000,"value":406.9},{"timestamp":1767677180000,"value":190.3},{"timestamp":1767677190000,"value":158},{"timestamp":1767677200000,"value":212.2},{"timestamp":1767677210000,"value":104},{"timestamp":1767677220000,"value":119.5},{"timestamp":1767677230000,"value":119.5},{"timestamp":1767677240000,"value":222.3},{"timestamp":1767677250000,"value":163},{"timestamp":1767677260000,"value":413.2},{"timestamp":1767677270000,"value":178.9},{"timestamp":1767677280000,"value":196.3},{"timestamp":1767677290000,"value":202.5},{"timestamp":1767677300000,"value":196.3},{"timestamp":1767677310000,"value":108.9},{"timestamp":1767677320000,"value":243.9},{"timestamp":1767677330000,"value":327.5},{"timestamp":1767677340000,"value":236.5},{"timestamp":1767677350000,"value":108.9},{"timestamp":1767677360000,"value":102.4},{"timestamp":1767677370000,"value":168.1},{"timestamp":1767677380000,"value":94.7},{"timestamp":1767677390000,"value":293.8},{"timestamp":1767677400000,"value":222.3},{"timestamp":1767677410000,"value":94.7},{"timestamp":1767677420000,"value":93.3},{"timestamp":1767677430000,"value":137.4},{"timestamp":1767677440000,"value":406.9},{"timestamp":1767677450000,"value":155.6},{"timestamp":1767677460000,"value":115.9},{"timestamp":1767677470000,"value":102.4},{"timestamp":1767677480000,"value":108.9},{"timestamp":1767677490000,"value":114.1},{"timestamp":1767677500000,"value":94.7},{"timestamp":1767677510000,"value":123.3},{"timestamp":1767677520000,"value":77.4},{"timestamp":1767677530000,"value":199.4},{"timestamp":1767677540000,"value":117.7},{"timestamp":1767677550000,"value":123.3},{"timestamp":1767677560000,"value":107.2},{"timestamp":1767677570000,"value":104},{"timestamp":1767677580000,"value":184.5},{"timestamp":1767677590000,"value":332.6},{"timestamp":1767677600000,"value":79.9},{"timestamp":1767677610000,"value":529.6},{"timestamp":1767677620000,"value":100.8},{"timestamp":1767677630000,"value":125.2},{"timestamp":1767677640000,"value":247.7},{"timestamp":1767677650000,"value":276.1},{"timestamp":1767677660000,"value":93.3},{"timestamp":1767677670000,"value":87.7},{"timestamp":1767677680000,"value":129.2},{"timestamp":1767677690000,"value":82.4},{"timestamp":1767677700000,"value":322.4},{"timestamp":1767677710000,"value":115.9},{"timestamp":1767677720000,"value":312.6},{"timestamp":1767677730000,"value":382.4},{"timestamp":1767677740000,"value":432.9},{"timestamp":1767677750000,"value":229.3},{"timestamp":1767677760000,"value":322.4},{"timestamp":1767677770000,"value":521.4},{"timestamp":1767677780000,"value":127.2},{"timestamp":1767677790000,"value":232.8},{"timestamp":1767677800000,"value":123.3},{"timestamp":1767677810000,"value":307.8},{"timestamp":1767677820000,"value":327.5},{"timestamp":1767677830000,"value":406.9},{"timestamp":1767677840000,"value":102.4},{"timestamp":1767677850000,"value":251.6},{"timestamp":1767677860000,"value":353.9},{"timestamp":1767677870000,"value":108.9},{"timestamp":1767677880000,"value":307.8},{"timestamp":1767677890000,"value":222.3},{"timestamp":1767677900000,"value":146.2},{"timestamp":1767677910000,"value":312.6},{"timestamp":1767677920000,"value":104},{"timestamp":1767677930000,"value":199.4},{"timestamp":1767677940000,"value":127.2},{"timestamp":1767677950000,"value":127.2},{"timestamp":1767677960000,"value":114.1},{"timestamp":1767677970000,"value":298.4},{"timestamp":1767677980000,"value":225.7},{"timestamp":1767677990000,"value":146.2},{"timestamp":1767678000000,"value":104},{"timestamp":1767678010000,"value":39.1},{"timestamp":1767678020000,"value":247.7},{"timestamp":1767678030000,"value":73.9},{"timestamp":1767678040000,"value":21.7},{"timestamp":1767678050000,"value":439.7}],"patch_/api/v1/transactions/:transactionid":[{"timestamp":1767676210000,"value":50.2},{"timestamp":1767676220000,"value":41.9},{"timestamp":1767676230000,"value":59.5},{"timestamp":1767676240000,"value":68.4},{"timestamp":1767676250000,"value":110.6},{"timestamp":1767676260000,"value":44.5},{"timestamp":1767676270000,"value":50.2},{"timestamp":1767676280000,"value":56.8},{"timestamp":1767676290000,"value":51},{"timestamp":1767676300000,"value":49.4},{"timestamp":1767676310000,"value":51.8},{"timestamp":1767676320000,"value":38.7},{"timestamp":1767676330000,"value":42.3},{"timestamp":1767676340000,"value":113.9},{"timestamp":1767676350000,"value":46.4},{"timestamp":1767676360000,"value":35.1},{"timestamp":1767676370000,"value":119.5},{"timestamp":1767676380000,"value":43.6},{"timestamp":1767676390000,"value":48.6},{"timestamp":1767676400000,"value":35.7},{"timestamp":1767676410000,"value":87.7},{"timestamp":1767676420000,"value":52.6},{"timestamp":1767676430000,"value":40.4},{"timestamp":1767676440000,"value":54.3},{"timestamp":1767676450000,"value":79.9},{"timestamp":1767676460000,"value":52.2},{"timestamp":1767676470000,"value":94.7},{"timestamp":1767676480000,"value":72.8},{"timestamp":1767676490000,"value":49.4},{"timestamp":1767676500000,"value":39.8},{"timestamp":1767676510000,"value":76.3},{"timestamp":1767676520000,"value":45.7},{"timestamp":1767676530000,"value":38},{"timestamp":1767676540000,"value":61.3},{"timestamp":1767676550000,"value":41.7},{"timestamp":1767676560000,"value":41.1},{"timestamp":1767676570000,"value":54.2},{"timestamp":1767676580000,"value":57.7},{"timestamp":1767676590000,"value":56.8},{"timestamp":1767676600000,"value":67.4},{"timestamp":1767676610000,"value":54.2},{"timestamp":1767676620000,"value":62.3},{"timestamp":1767676630000,"value":276.1},{"timestamp":1767676640000,"value":78.7},{"timestamp":1767676650000,"value":59.5},{"timestamp":1767676660000,"value":59.5},{"timestamp":1767676670000,"value":47.2},{"timestamp":1767676680000,"value":50.2},{"timestamp":1767676690000,"value":123.3},{"timestamp":1767676700000,"value":61.4},{"timestamp":1767676710000,"value":76.3},{"timestamp":1767676720000,"value":89},{"timestamp":1767676730000,"value":56.8},{"timestamp":1767676740000,"value":49.4},{"timestamp":1767676750000,"value":63.3},{"timestamp":1767676760000,"value":57.7},{"timestamp":1767676770000,"value":57.7},{"timestamp":1767676780000,"value":68.4},{"timestamp":1767676790000,"value":63.3},{"timestamp":1767676800000,"value":82.4},{"timestamp":1767676810000,"value":66.3},{"timestamp":1767676820000,"value":66.3},{"timestamp":1767676830000,"value":168.1},{"timestamp":1767676840000,"value":90.4},{"timestamp":1767676850000,"value":50.2},{"timestamp":1767676860000,"value":78.7},{"timestamp":1767676870000,"value":83.7},{"timestamp":1767676880000,"value":99.2},{"timestamp":1767676890000,"value":53.4},{"timestamp":1767676900000,"value":93.3},{"timestamp":1767676910000,"value":67.4},{"timestamp":1767676920000,"value":66.3},{"timestamp":1767676930000,"value":68.4},{"timestamp":1767676940000,"value":104},{"timestamp":1767676950000,"value":63.3},{"timestamp":1767676960000,"value":78.7},{"timestamp":1767676970000,"value":59.5},{"timestamp":1767676980000,"value":75.1},{"timestamp":1767676990000,"value":99.2},{"timestamp":1767677000000,"value":72.8},{"timestamp":1767677010000,"value":49.4},{"timestamp":1767677020000,"value":89},{"timestamp":1767677030000,"value":78.7},{"timestamp":1767677040000,"value":97.7},{"timestamp":1767677050000,"value":48.6},{"timestamp":1767677060000,"value":110.6},{"timestamp":1767677070000,"value":75.1},{"timestamp":1767677080000,"value":376.5},{"timestamp":1767677090000,"value":63.3},{"timestamp":1767677100000,"value":100.8},{"timestamp":1767677110000,"value":56.8},{"timestamp":1767677120000,"value":78.7},{"timestamp":1767677130000,"value":67.4},{"timestamp":1767677140000,"value":141.8},{"timestamp":1767677150000,"value":123.3},{"timestamp":1767677160000,"value":68.4},{"timestamp":1767677170000,"value":75.1},{"timestamp":1767677180000,"value":135.3},{"timestamp":1767677190000,"value":57.7},{"timestamp":1767677200000,"value":96.2},{"timestamp":1767677210000,"value":83.7},{"timestamp":1767677220000,"value":59.5},{"timestamp":1767677230000,"value":107.2},{"timestamp":1767677240000,"value":85},{"timestamp":1767677250000,"value":81.1},{"timestamp":1767677260000,"value":298.4},{"timestamp":1767677270000,"value":86.3},{"timestamp":1767677280000,"value":66.3},{"timestamp":1767677290000,"value":104},{"timestamp":1767677300000,"value":87.7},{"timestamp":1767677310000,"value":119.5},{"timestamp":1767677320000,"value":79.9},{"timestamp":1767677330000,"value":89},{"timestamp":1767677340000,"value":66.3},{"timestamp":1767677350000,"value":79.9},{"timestamp":1767677360000,"value":62.3},{"timestamp":1767677370000,"value":64.3},{"timestamp":1767677380000,"value":73.9},{"timestamp":1767677390000,"value":99.2},{"timestamp":1767677400000,"value":60.4},{"timestamp":1767677410000,"value":86.3},{"timestamp":1767677420000,"value":64.3},{"timestamp":1767677430000,"value":82.4},{"timestamp":1767677440000,"value":55.9},{"timestamp":1767677450000,"value":82.4},{"timestamp":1767677460000,"value":153.2},{"timestamp":1767677470000,"value":112.4},{"timestamp":1767677480000,"value":91.8},{"timestamp":1767677490000,"value":91.8},{"timestamp":1767677500000,"value":93.3},{"timestamp":1767677510000,"value":90.4},{"timestamp":1767677520000,"value":67.4},{"timestamp":1767677530000,"value":72.8},{"timestamp":1767677540000,"value":60.4},{"timestamp":1767677550000,"value":68.4},{"timestamp":1767677560000,"value":102.4},{"timestamp":1767677570000,"value":76.3},{"timestamp":1767677580000,"value":75.1},{"timestamp":1767677590000,"value":86.3},{"timestamp":1767677600000,"value":114.1},{"timestamp":1767677610000,"value":48.6},{"timestamp":1767677620000,"value":117.7},{"timestamp":1767677630000,"value":97.7},{"timestamp":1767677640000,"value":61.4},{"timestamp":1767677650000,"value":97.7},{"timestamp":1767677660000,"value":267.7},{"timestamp":1767677670000,"value":71.7},{"timestamp":1767677680000,"value":125.2},{"timestamp":1767677690000,"value":67.4},{"timestamp":1767677700000,"value":82.4},{"timestamp":1767677710000,"value":64.3},{"timestamp":1767677720000,"value":86.3},{"timestamp":1767677730000,"value":66.3},{"timestamp":1767677740000,"value":72.8},{"timestamp":1767677750000,"value":148.5},{"timestamp":1767677760000,"value":63.3},{"timestamp":1767677770000,"value":78.7},{"timestamp":1767677780000,"value":65.3},{"timestamp":1767677790000,"value":55.9},{"timestamp":1767677800000,"value":68.4},{"timestamp":1767677810000,"value":93.3},{"timestamp":1767677820000,"value":63.3},{"timestamp":1767677830000,"value":104},{"timestamp":1767677840000,"value":64.3},{"timestamp":1767677850000,"value":67.4},{"timestamp":1767677860000,"value":94.7},{"timestamp":1767677870000,"value":81.1},{"timestamp":1767677880000,"value":82.4},{"timestamp":1767677890000,"value":94.7},{"timestamp":1767677900000,"value":69.5},{"timestamp":1767677910000,"value":61.4},{"timestamp":1767677920000,"value":71.7},{"timestamp":1767677930000,"value":75.1},{"timestamp":1767677940000,"value":71.7},{"timestamp":1767677950000,"value":73.9},{"timestamp":1767677960000,"value":56.8},{"timestamp":1767677970000,"value":59.5},{"timestamp":1767677980000,"value":65.3},{"timestamp":1767677990000,"value":58.6},{"timestamp":1767678000000,"value":76.3}],"get_/api/v1/transactions":[{"timestamp":1767676210000,"value":90.4},{"timestamp":1767676220000,"value":14.2},{"timestamp":1767676230000,"value":16.7},{"timestamp":1767676240000,"value":20.1},{"timestamp":1767676250000,"value":77.4},{"timestamp":1767676260000,"value":15.1},{"timestamp":1767676270000,"value":17.5},{"timestamp":1767676280000,"value":13.4},{"timestamp":1767676290000,"value":15.4},{"timestamp":1767676300000,"value":77.4},{"timestamp":1767676310000,"value":36.2},{"timestamp":1767676320000,"value":15.4},{"timestamp":1767676330000,"value":75.1},{"timestamp":1767676340000,"value":14.5},{"timestamp":1767676350000,"value":110.6},{"timestamp":1767676360000,"value":17.8},{"timestamp":1767676370000,"value":37.4},{"timestamp":1767676380000,"value":14.8},{"timestamp":1767676390000,"value":18.6},{"timestamp":1767676400000,"value":17.5},{"timestamp":1767676410000,"value":34},{"timestamp":1767676420000,"value":87.8},{"timestamp":1767676430000,"value":16.9},{"timestamp":1767676440000,"value":16.4},{"timestamp":1767676450000,"value":79.4},{"timestamp":1767676460000,"value":15},{"timestamp":1767676470000,"value":19.8},{"timestamp":1767676480000,"value":16.7},{"timestamp":1767676490000,"value":15.2},{"timestamp":1767676500000,"value":20.8},{"timestamp":1767676510000,"value":13},{"timestamp":1767676520000,"value":19.2},{"timestamp":1767676530000,"value":16.7},{"timestamp":1767676540000,"value":17.5},{"timestamp":1767676550000,"value":69.5},{"timestamp":1767676560000,"value":13.7},{"timestamp":1767676570000,"value":17.2},{"timestamp":1767676580000,"value":17.5},{"timestamp":1767676590000,"value":17.5},{"timestamp":1767676600000,"value":18.6},{"timestamp":1767676610000,"value":19.5},{"timestamp":1767676620000,"value":71.7},{"timestamp":1767676630000,"value":21.7},{"timestamp":1767676640000,"value":19.2},{"timestamp":1767676650000,"value":19.2},{"timestamp":1767676660000,"value":54.2},{"timestamp":1767676670000,"value":18.9},{"timestamp":1767676680000,"value":48.6},{"timestamp":1767676690000,"value":70.6},{"timestamp":1767676700000,"value":19.8},{"timestamp":1767676710000,"value":85},{"timestamp":1767676720000,"value":22.4},{"timestamp":1767676730000,"value":15},{"timestamp":1767676740000,"value":21.7},{"timestamp":1767676750000,"value":38},{"timestamp":1767676760000,"value":23.5},{"timestamp":1767676770000,"value":37.4},{"timestamp":1767676780000,"value":82.4},{"timestamp":1767676790000,"value":141.8},{"timestamp":1767676800000,"value":91.8},{"timestamp":1767676810000,"value":22.4},{"timestamp":1767676820000,"value":18.6},{"timestamp":1767676830000,"value":90.4},{"timestamp":1767676840000,"value":24.2},{"timestamp":1767676850000,"value":21.1},{"timestamp":1767676860000,"value":21.1},{"timestamp":1767676870000,"value":18.6},{"timestamp":1767676880000,"value":57.7},{"timestamp":1767676890000,"value":21.1},{"timestamp":1767676900000,"value":25},{"timestamp":1767676910000,"value":25},{"timestamp":1767676920000,"value":15.4},{"timestamp":1767676930000,"value":21.7},{"timestamp":1767676940000,"value":22.1},{"timestamp":1767676950000,"value":75.1},{"timestamp":1767676960000,"value":30.5},{"timestamp":1767676970000,"value":16.7},{"timestamp":1767676980000,"value":23.5},{"timestamp":1767676990000,"value":22.1},{"timestamp":1767677000000,"value":25},{"timestamp":1767677010000,"value":21.1},{"timestamp":1767677020000,"value":27},{"timestamp":1767677030000,"value":67.4},{"timestamp":1767677040000,"value":22.4},{"timestamp":1767677050000,"value":20.1},{"timestamp":1767677060000,"value":29.2},{"timestamp":1767677070000,"value":20.4},{"timestamp":1767677080000,"value":23.8},{"timestamp":1767677090000,"value":81.1},{"timestamp":1767677100000,"value":123.3},{"timestamp":1767677110000,"value":113.9},{"timestamp":1767677120000,"value":45.7},{"timestamp":1767677130000,"value":26.6},{"timestamp":1767677140000,"value":23.5},{"timestamp":1767677150000,"value":17.5},{"timestamp":1767677160000,"value":16.9},{"timestamp":1767677170000,"value":31},{"timestamp":1767677180000,"value":37.4},{"timestamp":1767677190000,"value":22.4},{"timestamp":1767677200000,"value":30.1},{"timestamp":1767677210000,"value":20.7},{"timestamp":1767677220000,"value":23.1},{"timestamp":1767677230000,"value":75.1},{"timestamp":1767677240000,"value":83.7},{"timestamp":1767677250000,"value":19.8},{"timestamp":1767677260000,"value":20.4},{"timestamp":1767677270000,"value":27.4},{"timestamp":1767677280000,"value":23.5},{"timestamp":1767677290000,"value":23.5},{"timestamp":1767677300000,"value":28.3},{"timestamp":1767677310000,"value":23.1},{"timestamp":1767677320000,"value":35.1},{"timestamp":1767677330000,"value":193.3},{"timestamp":1767677340000,"value":127.2},{"timestamp":1767677350000,"value":27.8},{"timestamp":1767677360000,"value":33},{"timestamp":1767677370000,"value":21.4},{"timestamp":1767677380000,"value":26.2},{"timestamp":1767677390000,"value":38},{"timestamp":1767677400000,"value":112.4},{"timestamp":1767677410000,"value":59.5},{"timestamp":1767677420000,"value":23.8},{"timestamp":1767677430000,"value":54.2},{"timestamp":1767677440000,"value":49.4},{"timestamp":1767677450000,"value":75.1},{"timestamp":1767677460000,"value":117.7},{"timestamp":1767677470000,"value":55.9},{"timestamp":1767677480000,"value":77.4},{"timestamp":1767677490000,"value":81.1},{"timestamp":1767677500000,"value":61.4},{"timestamp":1767677510000,"value":30.5},{"timestamp":1767677520000,"value":40.4},{"timestamp":1767677530000,"value":155.6},{"timestamp":1767677540000,"value":49.4},{"timestamp":1767677550000,"value":32},{"timestamp":1767677560000,"value":28.7},{"timestamp":1767677570000,"value":25.4},{"timestamp":1767677580000,"value":34},{"timestamp":1767677590000,"value":28.3},{"timestamp":1767677600000,"value":36.8},{"timestamp":1767677610000,"value":33.5},{"timestamp":1767677620000,"value":36.8},{"timestamp":1767677630000,"value":23.8},{"timestamp":1767677640000,"value":35.1},{"timestamp":1767677650000,"value":97.7},{"timestamp":1767677660000,"value":20.1},{"timestamp":1767677670000,"value":20.7},{"timestamp":1767677680000,"value":26.6},{"timestamp":1767677690000,"value":22.4},{"timestamp":1767677700000,"value":28.7},{"timestamp":1767677710000,"value":76.3},{"timestamp":1767677720000,"value":112.4},{"timestamp":1767677730000,"value":39.1},{"timestamp":1767677740000,"value":83.7},{"timestamp":1767677750000,"value":51.8},{"timestamp":1767677760000,"value":65.3},{"timestamp":1767677770000,"value":30.1},{"timestamp":1767677780000,"value":25.4},{"timestamp":1767677790000,"value":39.8},{"timestamp":1767677800000,"value":17.8},{"timestamp":1767677810000,"value":25},{"timestamp":1767677820000,"value":35.7},{"timestamp":1767677830000,"value":303.1},{"timestamp":1767677840000,"value":25.4},{"timestamp":1767677850000,"value":70.6},{"timestamp":1767677860000,"value":85},{"timestamp":1767677870000,"value":28.3},{"timestamp":1767677880000,"value":22.4},{"timestamp":1767677890000,"value":30.5},{"timestamp":1767677900000,"value":58.6},{"timestamp":1767677910000,"value":42.3},{"timestamp":1767677920000,"value":23.1},{"timestamp":1767677930000,"value":32},{"timestamp":1767677940000,"value":34.6},{"timestamp":1767677950000,"value":32.5},{"timestamp":1767677960000,"value":23.1},{"timestamp":1767677970000,"value":34},{"timestamp":1767677980000,"value":83.7},{"timestamp":1767677990000,"value":39.8},{"timestamp":1767678000000,"value":23.8}]};
+            const rateTimeSeries = {"post_/mcp":[{"timestamp":1767676210000,"value":0.6},{"timestamp":1767676220000,"value":0.9},{"timestamp":1767676230000,"value":0.6},{"timestamp":1767676240000,"value":1.1},{"timestamp":1767676250000,"value":0.8},{"timestamp":1767676260000,"value":0.5},{"timestamp":1767676270000,"value":0.9},{"timestamp":1767676280000,"value":1.2},{"timestamp":1767676290000,"value":1},{"timestamp":1767676300000,"value":0.9},{"timestamp":1767676310000,"value":1.4},{"timestamp":1767676320000,"value":0.9},{"timestamp":1767676330000,"value":0.6},{"timestamp":1767676340000,"value":0.9},{"timestamp":1767676350000,"value":0.6},{"timestamp":1767676360000,"value":1},{"timestamp":1767676370000,"value":0.6},{"timestamp":1767676380000,"value":1.3},{"timestamp":1767676390000,"value":1.4},{"timestamp":1767676400000,"value":1.3},{"timestamp":1767676410000,"value":1},{"timestamp":1767676420000,"value":2.1},{"timestamp":1767676430000,"value":1},{"timestamp":1767676440000,"value":1.3},{"timestamp":1767676450000,"value":0.6},{"timestamp":1767676460000,"value":1.3},{"timestamp":1767676470000,"value":0.3},{"timestamp":1767676480000,"value":0.9},{"timestamp":1767676490000,"value":0.3},{"timestamp":1767676500000,"value":1.2},{"timestamp":1767676510000,"value":0.7},{"timestamp":1767676520000,"value":0.6},{"timestamp":1767676530000,"value":1.4},{"timestamp":1767676540000,"value":0.9},{"timestamp":1767676550000,"value":0.6},{"timestamp":1767676560000,"value":1.2},{"timestamp":1767676570000,"value":0.6},{"timestamp":1767676580000,"value":0.9},{"timestamp":1767676590000,"value":1.2},{"timestamp":1767676600000,"value":0.6},{"timestamp":1767676610000,"value":1.2},{"timestamp":1767676620000,"value":0.6},{"timestamp":1767676630000,"value":1.2},{"timestamp":1767676640000,"value":1.2},{"timestamp":1767676650000,"value":0.6},{"timestamp":1767676660000,"value":2.4},{"timestamp":1767676670000,"value":0.3},{"timestamp":1767676680000,"value":1.8},{"timestamp":1767676690000,"value":0.9},{"timestamp":1767676700000,"value":0.9},{"timestamp":1767676710000,"value":1.2},{"timestamp":1767676720000,"value":0.9},{"timestamp":1767676730000,"value":1.2},{"timestamp":1767676740000,"value":1.3},{"timestamp":1767676750000,"value":1.6},{"timestamp":1767676760000,"value":1.5},{"timestamp":1767676770000,"value":0.3},{"timestamp":1767676780000,"value":2.4},{"timestamp":1767676790000,"value":1.5},{"timestamp":1767676800000,"value":0.9},{"timestamp":1767676810000,"value":1.5},{"timestamp":1767676820000,"value":1.8},{"timestamp":1767676830000,"value":0.9},{"timestamp":1767676840000,"value":1.2},{"timestamp":1767676850000,"value":0.9},{"timestamp":1767676860000,"value":1.2},{"timestamp":1767676870000,"value":1.5},{"timestamp":1767676880000,"value":1.5},{"timestamp":1767676890000,"value":1.2},{"timestamp":1767676900000,"value":0.6},{"timestamp":1767676910000,"value":1.2},{"timestamp":1767676920000,"value":1.8},{"timestamp":1767676930000,"value":0.6},{"timestamp":1767676950000,"value":0.9},{"timestamp":1767676960000,"value":1.9},{"timestamp":1767676970000,"value":0.9},{"timestamp":1767676980000,"value":1.8},{"timestamp":1767676990000,"value":2.1},{"timestamp":1767677000000,"value":1.2},{"timestamp":1767677010000,"value":0.9},{"timestamp":1767677020000,"value":3},{"timestamp":1767677030000,"value":2.1},{"timestamp":1767677040000,"value":2.1},{"timestamp":1767677050000,"value":0.9},{"timestamp":1767677060000,"value":1.8},{"timestamp":1767677070000,"value":2.7},{"timestamp":1767677080000,"value":1.5},{"timestamp":1767677090000,"value":1.8},{"timestamp":1767677100000,"value":2.1},{"timestamp":1767677110000,"value":0.6},{"timestamp":1767677120000,"value":1.8},{"timestamp":1767677130000,"value":3},{"timestamp":1767677140000,"value":0.9},{"timestamp":1767677150000,"value":1.2},{"timestamp":1767677160000,"value":2.1},{"timestamp":1767677170000,"value":0.9},{"timestamp":1767677180000,"value":1.3},{"timestamp":1767677190000,"value":2.5},{"timestamp":1767677200000,"value":1.5},{"timestamp":1767677210000,"value":1.2},{"timestamp":1767677220000,"value":1.5},{"timestamp":1767677230000,"value":2},{"timestamp":1767677240000,"value":1.4},{"timestamp":1767677250000,"value":1.8},{"timestamp":1767677260000,"value":2.1},{"timestamp":1767677270000,"value":1.2},{"timestamp":1767677280000,"value":1.6},{"timestamp":1767677290000,"value":1.4},{"timestamp":1767677300000,"value":2.5},{"timestamp":1767677310000,"value":0.6},{"timestamp":1767677320000,"value":1.5},{"timestamp":1767677330000,"value":0.3},{"timestamp":1767677340000,"value":1.9},{"timestamp":1767677350000,"value":1},{"timestamp":1767677360000,"value":1.2},{"timestamp":1767677370000,"value":1.2},{"timestamp":1767677380000,"value":1.2},{"timestamp":1767677390000,"value":1.2},{"timestamp":1767677400000,"value":0.9},{"timestamp":1767677410000,"value":0.6},{"timestamp":1767677420000,"value":1.5},{"timestamp":1767677430000,"value":0.6},{"timestamp":1767677440000,"value":2.4},{"timestamp":1767677450000,"value":0.9},{"timestamp":1767677460000,"value":0.9},{"timestamp":1767677470000,"value":0.3},{"timestamp":1767677480000,"value":1.8},{"timestamp":1767677490000,"value":1.2},{"timestamp":1767677500000,"value":1.2},{"timestamp":1767677510000,"value":1.3},{"timestamp":1767677520000,"value":1.2},{"timestamp":1767677530000,"value":1.5},{"timestamp":1767677540000,"value":0.9},{"timestamp":1767677550000,"value":0.3},{"timestamp":1767677560000,"value":1.2},{"timestamp":1767677570000,"value":2.2},{"timestamp":1767677580000,"value":0.9},{"timestamp":1767677590000,"value":1.2},{"timestamp":1767677600000,"value":1.9},{"timestamp":1767677610000,"value":1.5},{"timestamp":1767677620000,"value":0.9},{"timestamp":1767677630000,"value":0.9},{"timestamp":1767677640000,"value":0.6},{"timestamp":1767677650000,"value":1.9},{"timestamp":1767677660000,"value":1.6},{"timestamp":1767677670000,"value":1.2},{"timestamp":1767677680000,"value":1},{"timestamp":1767677690000,"value":0.9},{"timestamp":1767677700000,"value":0.6},{"timestamp":1767677720000,"value":2.8},{"timestamp":1767677730000,"value":0.7},{"timestamp":1767677740000,"value":1.5},{"timestamp":1767677760000,"value":1},{"timestamp":1767677770000,"value":1.5},{"timestamp":1767677780000,"value":1.7},{"timestamp":1767677790000,"value":0.9},{"timestamp":1767677800000,"value":1.3},{"timestamp":1767677820000,"value":1.9},{"timestamp":1767677830000,"value":1.5},{"timestamp":1767677840000,"value":0.3},{"timestamp":1767677850000,"value":1},{"timestamp":1767677860000,"value":1.9},{"timestamp":1767677870000,"value":1},{"timestamp":1767677880000,"value":1.3},{"timestamp":1767677890000,"value":0.9},{"timestamp":1767677900000,"value":1.2},{"timestamp":1767677910000,"value":1.3},{"timestamp":1767677920000,"value":1.8},{"timestamp":1767677940000,"value":1.6},{"timestamp":1767677950000,"value":1.5},{"timestamp":1767677960000,"value":1.9},{"timestamp":1767677970000,"value":0.4},{"timestamp":1767677980000,"value":1.2},{"timestamp":1767677990000,"value":0.6},{"timestamp":1767678000000,"value":1.8},{"timestamp":1767678010000,"value":1.2},{"timestamp":1767678020000,"value":1.3},{"timestamp":1767678040000,"value":0.4},{"timestamp":1767678050000,"value":2.4}],"post_/api/v1/transactions":[{"timestamp":1767676210000,"value":0.3},{"timestamp":1767676220000,"value":0.2},{"timestamp":1767676230000,"value":0.3},{"timestamp":1767676240000,"value":0.2},{"timestamp":1767676250000,"value":0.3},{"timestamp":1767676260000,"value":0.2},{"timestamp":1767676270000,"value":0.3},{"timestamp":1767676280000,"value":0.2},{"timestamp":1767676290000,"value":0.3},{"timestamp":1767676300000,"value":0.2},{"timestamp":1767676310000,"value":0.3},{"timestamp":1767676320000,"value":0.2},{"timestamp":1767676330000,"value":0.3},{"timestamp":1767676340000,"value":0.2},{"timestamp":1767676350000,"value":0.3},{"timestamp":1767676360000,"value":0.2},{"timestamp":1767676370000,"value":0.3},{"timestamp":1767676380000,"value":0.2},{"timestamp":1767676390000,"value":0.3},{"timestamp":1767676400000,"value":0.2},{"timestamp":1767676410000,"value":0.3},{"timestamp":1767676420000,"value":0.2},{"timestamp":1767676430000,"value":0.3},{"timestamp":1767676440000,"value":0.2},{"timestamp":1767676450000,"value":0.3},{"timestamp":1767676460000,"value":0.2},{"timestamp":1767676470000,"value":0.3},{"timestamp":1767676480000,"value":0.2},{"timestamp":1767676490000,"value":0.3},{"timestamp":1767676500000,"value":0.2},{"timestamp":1767676510000,"value":0.3},{"timestamp":1767676520000,"value":0.2},{"timestamp":1767676530000,"value":0.3},{"timestamp":1767676540000,"value":0.2},{"timestamp":1767676550000,"value":0.3},{"timestamp":1767676560000,"value":0.2},{"timestamp":1767676570000,"value":0.3},{"timestamp":1767676580000,"value":0.3},{"timestamp":1767676590000,"value":0.4},{"timestamp":1767676600000,"value":0.4},{"timestamp":1767676610000,"value":0.5},{"timestamp":1767676620000,"value":0.5},{"timestamp":1767676630000,"value":0.5},{"timestamp":1767676640000,"value":0.5},{"timestamp":1767676650000,"value":0.5},{"timestamp":1767676660000,"value":0.5},{"timestamp":1767676670000,"value":0.5},{"timestamp":1767676680000,"value":0.5},{"timestamp":1767676690000,"value":0.5},{"timestamp":1767676700000,"value":0.5},{"timestamp":1767676710000,"value":0.5},{"timestamp":1767676720000,"value":0.5},{"timestamp":1767676730000,"value":0.5},{"timestamp":1767676740000,"value":0.5},{"timestamp":1767676750000,"value":0.5},{"timestamp":1767676760000,"value":0.5},{"timestamp":1767676770000,"value":0.5},{"timestamp":1767676780000,"value":0.5},{"timestamp":1767676790000,"value":0.5},{"timestamp":1767676800000,"value":0.5},{"timestamp":1767676810000,"value":0.5},{"timestamp":1767676820000,"value":0.5},{"timestamp":1767676830000,"value":0.5},{"timestamp":1767676840000,"value":0.5},{"timestamp":1767676850000,"value":0.5},{"timestamp":1767676860000,"value":0.5},{"timestamp":1767676870000,"value":0.5},{"timestamp":1767676880000,"value":0.5},{"timestamp":1767676890000,"value":0.5},{"timestamp":1767676900000,"value":0.5},{"timestamp":1767676910000,"value":0.5},{"timestamp":1767676920000,"value":0.5},{"timestamp":1767676930000,"value":0.5},{"timestamp":1767676940000,"value":0.6},{"timestamp":1767676950000,"value":0.6},{"timestamp":1767676960000,"value":0.7},{"timestamp":1767676970000,"value":0.7},{"timestamp":1767676980000,"value":0.7},{"timestamp":1767676990000,"value":0.8},{"timestamp":1767677000000,"value":0.7},{"timestamp":1767677010000,"value":0.8},{"timestamp":1767677020000,"value":0.7},{"timestamp":1767677030000,"value":0.8},{"timestamp":1767677040000,"value":0.7},{"timestamp":1767677050000,"value":0.8},{"timestamp":1767677060000,"value":0.7},{"timestamp":1767677070000,"value":0.8},{"timestamp":1767677080000,"value":0.7},{"timestamp":1767677090000,"value":0.8},{"timestamp":1767677100000,"value":0.7},{"timestamp":1767677110000,"value":0.8},{"timestamp":1767677120000,"value":0.7},{"timestamp":1767677130000,"value":0.8},{"timestamp":1767677140000,"value":0.7},{"timestamp":1767677150000,"value":0.8},{"timestamp":1767677160000,"value":0.7},{"timestamp":1767677170000,"value":0.8},{"timestamp":1767677180000,"value":0.7},{"timestamp":1767677190000,"value":0.8},{"timestamp":1767677200000,"value":0.7},{"timestamp":1767677210000,"value":0.8},{"timestamp":1767677220000,"value":0.7},{"timestamp":1767677230000,"value":0.8},{"timestamp":1767677240000,"value":0.7},{"timestamp":1767677250000,"value":0.8},{"timestamp":1767677260000,"value":0.7},{"timestamp":1767677270000,"value":0.8},{"timestamp":1767677280000,"value":0.7},{"timestamp":1767677290000,"value":0.8},{"timestamp":1767677300000,"value":0.8},{"timestamp":1767677310000,"value":0.9},{"timestamp":1767677320000,"value":0.9},{"timestamp":1767677330000,"value":1},{"timestamp":1767677340000,"value":0.9},{"timestamp":1767677350000,"value":1},{"timestamp":1767677360000,"value":1},{"timestamp":1767677370000,"value":1},{"timestamp":1767677380000,"value":1},{"timestamp":1767677390000,"value":1},{"timestamp":1767677400000,"value":1},{"timestamp":1767677410000,"value":1},{"timestamp":1767677420000,"value":1},{"timestamp":1767677430000,"value":1},{"timestamp":1767677440000,"value":1},{"timestamp":1767677450000,"value":1},{"timestamp":1767677460000,"value":1},{"timestamp":1767677470000,"value":1},{"timestamp":1767677480000,"value":1},{"timestamp":1767677490000,"value":1},{"timestamp":1767677500000,"value":1},{"timestamp":1767677510000,"value":1},{"timestamp":1767677520000,"value":1},{"timestamp":1767677530000,"value":1},{"timestamp":1767677540000,"value":1},{"timestamp":1767677550000,"value":1},{"timestamp":1767677560000,"value":1},{"timestamp":1767677570000,"value":1},{"timestamp":1767677580000,"value":1},{"timestamp":1767677590000,"value":1},{"timestamp":1767677600000,"value":1},{"timestamp":1767677610000,"value":1},{"timestamp":1767677620000,"value":1},{"timestamp":1767677630000,"value":1},{"timestamp":1767677640000,"value":1},{"timestamp":1767677650000,"value":1.1},{"timestamp":1767677660000,"value":1.1},{"timestamp":1767677670000,"value":1.1},{"timestamp":1767677680000,"value":1.1},{"timestamp":1767677690000,"value":1.2},{"timestamp":1767677700000,"value":1.3},{"timestamp":1767677710000,"value":1.2},{"timestamp":1767677720000,"value":1.3},{"timestamp":1767677730000,"value":1.2},{"timestamp":1767677740000,"value":1.3},{"timestamp":1767677750000,"value":1.2},{"timestamp":1767677760000,"value":1.3},{"timestamp":1767677770000,"value":1.2},{"timestamp":1767677780000,"value":1.3},{"timestamp":1767677790000,"value":1.2},{"timestamp":1767677800000,"value":1.3},{"timestamp":1767677810000,"value":1.2},{"timestamp":1767677820000,"value":1.3},{"timestamp":1767677830000,"value":1.2},{"timestamp":1767677840000,"value":1.3},{"timestamp":1767677850000,"value":1.2},{"timestamp":1767677860000,"value":1.3},{"timestamp":1767677870000,"value":1.2},{"timestamp":1767677880000,"value":1.3},{"timestamp":1767677890000,"value":1.2},{"timestamp":1767677900000,"value":1.3},{"timestamp":1767677910000,"value":1.2},{"timestamp":1767677920000,"value":1.3},{"timestamp":1767677930000,"value":1.2},{"timestamp":1767677940000,"value":1.3},{"timestamp":1767677950000,"value":1.2},{"timestamp":1767677960000,"value":1.3},{"timestamp":1767677970000,"value":1.2},{"timestamp":1767677980000,"value":1.3},{"timestamp":1767677990000,"value":1.2},{"timestamp":1767678000000,"value":0.9}],"get_/api/v1/transactions/:transactionid":[{"timestamp":1767676210000,"value":2.1},{"timestamp":1767676220000,"value":1.6},{"timestamp":1767676230000,"value":2},{"timestamp":1767676240000,"value":1.9},{"timestamp":1767676250000,"value":2.6},{"timestamp":1767676260000,"value":1.8},{"timestamp":1767676270000,"value":2.7},{"timestamp":1767676280000,"value":1.9},{"timestamp":1767676290000,"value":2.6},{"timestamp":1767676300000,"value":1.8},{"timestamp":1767676310000,"value":2.8},{"timestamp":1767676320000,"value":1.9},{"timestamp":1767676330000,"value":2.7},{"timestamp":1767676340000,"value":1.7},{"timestamp":1767676350000,"value":2.5},{"timestamp":1767676360000,"value":2},{"timestamp":1767676370000,"value":2.6},{"timestamp":1767676380000,"value":1.7},{"timestamp":1767676390000,"value":2.8},{"timestamp":1767676400000,"value":1.8},{"timestamp":1767676410000,"value":2.7},{"timestamp":1767676420000,"value":1.9},{"timestamp":1767676430000,"value":2.6},{"timestamp":1767676440000,"value":1.8},{"timestamp":1767676450000,"value":2.6},{"timestamp":1767676460000,"value":2},{"timestamp":1767676470000,"value":3},{"timestamp":1767676480000,"value":1.6},{"timestamp":1767676490000,"value":2.7},{"timestamp":1767676500000,"value":1.6},{"timestamp":1767676510000,"value":2.4},{"timestamp":1767676520000,"value":1.8},{"timestamp":1767676530000,"value":2.2},{"timestamp":1767676540000,"value":1.8},{"timestamp":1767676550000,"value":2.7},{"timestamp":1767676560000,"value":2},{"timestamp":1767676570000,"value":2.7},{"timestamp":1767676580000,"value":2.8},{"timestamp":1767676590000,"value":3},{"timestamp":1767676600000,"value":3.5},{"timestamp":1767676610000,"value":3.3},{"timestamp":1767676620000,"value":3.8},{"timestamp":1767676630000,"value":4.1},{"timestamp":1767676640000,"value":3.5},{"timestamp":1767676650000,"value":4.1},{"timestamp":1767676660000,"value":4.3},{"timestamp":1767676670000,"value":3.9},{"timestamp":1767676680000,"value":4},{"timestamp":1767676690000,"value":3.9},{"timestamp":1767676700000,"value":3.7},{"timestamp":1767676710000,"value":4.3},{"timestamp":1767676720000,"value":3.7},{"timestamp":1767676730000,"value":3.7},{"timestamp":1767676740000,"value":4.2},{"timestamp":1767676750000,"value":3.4},{"timestamp":1767676760000,"value":3.7},{"timestamp":1767676770000,"value":3.9},{"timestamp":1767676780000,"value":4.5},{"timestamp":1767676790000,"value":4.3},{"timestamp":1767676800000,"value":4.8},{"timestamp":1767676810000,"value":4.6},{"timestamp":1767676820000,"value":4.5},{"timestamp":1767676830000,"value":4.8},{"timestamp":1767676840000,"value":4.4},{"timestamp":1767676850000,"value":3.9},{"timestamp":1767676860000,"value":4.1},{"timestamp":1767676870000,"value":4.3},{"timestamp":1767676880000,"value":4.5},{"timestamp":1767676890000,"value":3.9},{"timestamp":1767676900000,"value":4.5},{"timestamp":1767676910000,"value":4.1},{"timestamp":1767676920000,"value":4},{"timestamp":1767676930000,"value":3.9},{"timestamp":1767676940000,"value":2.7},{"timestamp":1767676950000,"value":6},{"timestamp":1767676960000,"value":5.1},{"timestamp":1767676970000,"value":5},{"timestamp":1767676980000,"value":5.7},{"timestamp":1767676990000,"value":5.2},{"timestamp":1767677000000,"value":5},{"timestamp":1767677010000,"value":5.3},{"timestamp":1767677020000,"value":5.9},{"timestamp":1767677030000,"value":5.9},{"timestamp":1767677040000,"value":6.7},{"timestamp":1767677050000,"value":5.3},{"timestamp":1767677060000,"value":6.6},{"timestamp":1767677070000,"value":6.1},{"timestamp":1767677080000,"value":6.2},{"timestamp":1767677090000,"value":6.1},{"timestamp":1767677100000,"value":6.7},{"timestamp":1767677110000,"value":6},{"timestamp":1767677120000,"value":6.2},{"timestamp":1767677130000,"value":4.8},{"timestamp":1767677140000,"value":7.9},{"timestamp":1767677150000,"value":6.4},{"timestamp":1767677160000,"value":6.9},{"timestamp":1767677170000,"value":6},{"timestamp":1767677180000,"value":6.7},{"timestamp":1767677190000,"value":6},{"timestamp":1767677200000,"value":6.3},{"timestamp":1767677210000,"value":5.8},{"timestamp":1767677220000,"value":6.9},{"timestamp":1767677230000,"value":5.2},{"timestamp":1767677240000,"value":6.3},{"timestamp":1767677250000,"value":6.2},{"timestamp":1767677260000,"value":6.3},{"timestamp":1767677270000,"value":5.8},{"timestamp":1767677280000,"value":6.2},{"timestamp":1767677290000,"value":5.4},{"timestamp":1767677300000,"value":7},{"timestamp":1767677310000,"value":5.8},{"timestamp":1767677320000,"value":7.2},{"timestamp":1767677330000,"value":7},{"timestamp":1767677340000,"value":7.2},{"timestamp":1767677350000,"value":7.4},{"timestamp":1767677360000,"value":7.4},{"timestamp":1767677370000,"value":7.1},{"timestamp":1767677380000,"value":7.1},{"timestamp":1767677390000,"value":5.8},{"timestamp":1767677400000,"value":7.8},{"timestamp":1767677410000,"value":7.7},{"timestamp":1767677420000,"value":6.8},{"timestamp":1767677430000,"value":6.7},{"timestamp":1767677440000,"value":8.2},{"timestamp":1767677450000,"value":7.8},{"timestamp":1767677460000,"value":9.3},{"timestamp":1767677470000,"value":7.6},{"timestamp":1767677480000,"value":6.7},{"timestamp":1767677490000,"value":7.8},{"timestamp":1767677500000,"value":7.8},{"timestamp":1767677510000,"value":8},{"timestamp":1767677520000,"value":6.8},{"timestamp":1767677530000,"value":8.2},{"timestamp":1767677540000,"value":8},{"timestamp":1767677550000,"value":7.8},{"timestamp":1767677560000,"value":7.4},{"timestamp":1767677570000,"value":7.1},{"timestamp":1767677580000,"value":8.1},{"timestamp":1767677590000,"value":7.4},{"timestamp":1767677600000,"value":8.1},{"timestamp":1767677610000,"value":7.7},{"timestamp":1767677620000,"value":7.7},{"timestamp":1767677630000,"value":7.9},{"timestamp":1767677640000,"value":8},{"timestamp":1767677650000,"value":8.6},{"timestamp":1767677660000,"value":7.7},{"timestamp":1767677670000,"value":8.2},{"timestamp":1767677680000,"value":8.4},{"timestamp":1767677690000,"value":8.4},{"timestamp":1767677700000,"value":9.9},{"timestamp":1767677710000,"value":9.2},{"timestamp":1767677720000,"value":8.7},{"timestamp":1767677730000,"value":7},{"timestamp":1767677740000,"value":6.4},{"timestamp":1767677750000,"value":5.4},{"timestamp":1767677760000,"value":8.8},{"timestamp":1767677770000,"value":5.9},{"timestamp":1767677780000,"value":8.2},{"timestamp":1767677790000,"value":8.5},{"timestamp":1767677800000,"value":9},{"timestamp":1767677810000,"value":9.6},{"timestamp":1767677820000,"value":9.7},{"timestamp":1767677830000,"value":9.9},{"timestamp":1767677840000,"value":5.1},{"timestamp":1767677850000,"value":10.1},{"timestamp":1767677860000,"value":9.9},{"timestamp":1767677870000,"value":8},{"timestamp":1767677880000,"value":8.6},{"timestamp":1767677890000,"value":8.6},{"timestamp":1767677900000,"value":10.4},{"timestamp":1767677910000,"value":9},{"timestamp":1767677920000,"value":8.3},{"timestamp":1767677930000,"value":10.3},{"timestamp":1767677940000,"value":8.9},{"timestamp":1767677950000,"value":10.3},{"timestamp":1767677960000,"value":6.9},{"timestamp":1767677970000,"value":8.7},{"timestamp":1767677980000,"value":10.1},{"timestamp":1767677990000,"value":8.8},{"timestamp":1767678000000,"value":3.6},{"timestamp":1767678010000,"value":0.8},{"timestamp":1767678020000,"value":1.9},{"timestamp":1767678030000,"value":1.6},{"timestamp":1767678040000,"value":0.9},{"timestamp":1767678050000,"value":4.1}],"patch_/api/v1/transactions/:transactionid":[{"timestamp":1767676210000,"value":0.3},{"timestamp":1767676220000,"value":0.2},{"timestamp":1767676230000,"value":0.3},{"timestamp":1767676240000,"value":0.2},{"timestamp":1767676250000,"value":0.3},{"timestamp":1767676260000,"value":0.2},{"timestamp":1767676270000,"value":0.3},{"timestamp":1767676280000,"value":0.2},{"timestamp":1767676290000,"value":0.3},{"timestamp":1767676300000,"value":0.2},{"timestamp":1767676310000,"value":0.3},{"timestamp":1767676320000,"value":0.2},{"timestamp":1767676330000,"value":0.3},{"timestamp":1767676340000,"value":0.2},{"timestamp":1767676350000,"value":0.3},{"timestamp":1767676360000,"value":0.2},{"timestamp":1767676370000,"value":0.3},{"timestamp":1767676380000,"value":0.2},{"timestamp":1767676390000,"value":0.3},{"timestamp":1767676400000,"value":0.2},{"timestamp":1767676410000,"value":0.3},{"timestamp":1767676420000,"value":0.2},{"timestamp":1767676430000,"value":0.3},{"timestamp":1767676440000,"value":0.2},{"timestamp":1767676450000,"value":0.3},{"timestamp":1767676460000,"value":0.2},{"timestamp":1767676470000,"value":0.3},{"timestamp":1767676480000,"value":0.2},{"timestamp":1767676490000,"value":0.3},{"timestamp":1767676500000,"value":0.2},{"timestamp":1767676510000,"value":0.3},{"timestamp":1767676520000,"value":0.2},{"timestamp":1767676530000,"value":0.3},{"timestamp":1767676540000,"value":0.2},{"timestamp":1767676550000,"value":0.3},{"timestamp":1767676560000,"value":0.2},{"timestamp":1767676570000,"value":0.3},{"timestamp":1767676580000,"value":0.3},{"timestamp":1767676590000,"value":0.4},{"timestamp":1767676600000,"value":0.4},{"timestamp":1767676610000,"value":0.5},{"timestamp":1767676620000,"value":0.5},{"timestamp":1767676630000,"value":0.5},{"timestamp":1767676640000,"value":0.5},{"timestamp":1767676650000,"value":0.4},{"timestamp":1767676660000,"value":0.6},{"timestamp":1767676670000,"value":0.5},{"timestamp":1767676680000,"value":0.4},{"timestamp":1767676690000,"value":0.6},{"timestamp":1767676700000,"value":0.4},{"timestamp":1767676710000,"value":0.6},{"timestamp":1767676720000,"value":0.5},{"timestamp":1767676730000,"value":0.5},{"timestamp":1767676740000,"value":0.5},{"timestamp":1767676750000,"value":0.5},{"timestamp":1767676760000,"value":0.5},{"timestamp":1767676770000,"value":0.5},{"timestamp":1767676780000,"value":0.5},{"timestamp":1767676790000,"value":0.5},{"timestamp":1767676800000,"value":0.5},{"timestamp":1767676810000,"value":0.5},{"timestamp":1767676820000,"value":0.5},{"timestamp":1767676830000,"value":0.5},{"timestamp":1767676840000,"value":0.5},{"timestamp":1767676850000,"value":0.5},{"timestamp":1767676860000,"value":0.5},{"timestamp":1767676870000,"value":0.5},{"timestamp":1767676880000,"value":0.5},{"timestamp":1767676890000,"value":0.4},{"timestamp":1767676900000,"value":0.6},{"timestamp":1767676910000,"value":0.5},{"timestamp":1767676920000,"value":0.5},{"timestamp":1767676930000,"value":0.5},{"timestamp":1767676940000,"value":0.6},{"timestamp":1767676950000,"value":0.5},{"timestamp":1767676960000,"value":0.7},{"timestamp":1767676970000,"value":0.8},{"timestamp":1767676980000,"value":0.7},{"timestamp":1767676990000,"value":0.7},{"timestamp":1767677000000,"value":0.8},{"timestamp":1767677010000,"value":0.7},{"timestamp":1767677020000,"value":0.8},{"timestamp":1767677030000,"value":0.7},{"timestamp":1767677040000,"value":0.8},{"timestamp":1767677050000,"value":0.7},{"timestamp":1767677060000,"value":0.8},{"timestamp":1767677070000,"value":0.7},{"timestamp":1767677080000,"value":0.8},{"timestamp":1767677090000,"value":0.7},{"timestamp":1767677100000,"value":0.8},{"timestamp":1767677110000,"value":0.7},{"timestamp":1767677120000,"value":0.8},{"timestamp":1767677130000,"value":0.7},{"timestamp":1767677140000,"value":0.8},{"timestamp":1767677150000,"value":0.7},{"timestamp":1767677160000,"value":0.8},{"timestamp":1767677170000,"value":0.7},{"timestamp":1767677180000,"value":0.8},{"timestamp":1767677190000,"value":0.7},{"timestamp":1767677200000,"value":0.8},{"timestamp":1767677210000,"value":0.7},{"timestamp":1767677220000,"value":0.8},{"timestamp":1767677230000,"value":0.7},{"timestamp":1767677240000,"value":0.8},{"timestamp":1767677250000,"value":0.7},{"timestamp":1767677260000,"value":0.8},{"timestamp":1767677270000,"value":0.7},{"timestamp":1767677280000,"value":0.8},{"timestamp":1767677290000,"value":0.8},{"timestamp":1767677300000,"value":0.8},{"timestamp":1767677310000,"value":0.9},{"timestamp":1767677320000,"value":0.9},{"timestamp":1767677330000,"value":0.9},{"timestamp":1767677340000,"value":1},{"timestamp":1767677350000,"value":1},{"timestamp":1767677360000,"value":1},{"timestamp":1767677370000,"value":1},{"timestamp":1767677380000,"value":1},{"timestamp":1767677390000,"value":1},{"timestamp":1767677400000,"value":1},{"timestamp":1767677410000,"value":1},{"timestamp":1767677420000,"value":1},{"timestamp":1767677430000,"value":1},{"timestamp":1767677440000,"value":1},{"timestamp":1767677450000,"value":1},{"timestamp":1767677460000,"value":1},{"timestamp":1767677470000,"value":1},{"timestamp":1767677480000,"value":1},{"timestamp":1767677490000,"value":1},{"timestamp":1767677500000,"value":1},{"timestamp":1767677510000,"value":1},{"timestamp":1767677520000,"value":1},{"timestamp":1767677530000,"value":1},{"timestamp":1767677540000,"value":1},{"timestamp":1767677550000,"value":1},{"timestamp":1767677560000,"value":1},{"timestamp":1767677570000,"value":1},{"timestamp":1767677580000,"value":1},{"timestamp":1767677590000,"value":1},{"timestamp":1767677600000,"value":1},{"timestamp":1767677610000,"value":1},{"timestamp":1767677620000,"value":1},{"timestamp":1767677630000,"value":1},{"timestamp":1767677640000,"value":1},{"timestamp":1767677650000,"value":1.1},{"timestamp":1767677660000,"value":1},{"timestamp":1767677670000,"value":1.2},{"timestamp":1767677680000,"value":1.1},{"timestamp":1767677690000,"value":1.2},{"timestamp":1767677700000,"value":1.3},{"timestamp":1767677710000,"value":1.2},{"timestamp":1767677720000,"value":1.2},{"timestamp":1767677730000,"value":1.3},{"timestamp":1767677740000,"value":1.2},{"timestamp":1767677750000,"value":1.3},{"timestamp":1767677760000,"value":1.3},{"timestamp":1767677770000,"value":1.2},{"timestamp":1767677780000,"value":1.3},{"timestamp":1767677790000,"value":1.2},{"timestamp":1767677800000,"value":1.3},{"timestamp":1767677810000,"value":1.1},{"timestamp":1767677820000,"value":1.3},{"timestamp":1767677830000,"value":1.3},{"timestamp":1767677840000,"value":1.3},{"timestamp":1767677850000,"value":1.2},{"timestamp":1767677860000,"value":1.3},{"timestamp":1767677870000,"value":1.2},{"timestamp":1767677880000,"value":1.3},{"timestamp":1767677890000,"value":1.2},{"timestamp":1767677900000,"value":1.3},{"timestamp":1767677910000,"value":1.2},{"timestamp":1767677920000,"value":1.3},{"timestamp":1767677930000,"value":1.2},{"timestamp":1767677940000,"value":1.3},{"timestamp":1767677950000,"value":1.2},{"timestamp":1767677960000,"value":1.3},{"timestamp":1767677970000,"value":1.2},{"timestamp":1767677980000,"value":1.2},{"timestamp":1767677990000,"value":1.3},{"timestamp":1767678000000,"value":0.9}],"get_/api/v1/transactions":[{"timestamp":1767676210000,"value":0.3},{"timestamp":1767676220000,"value":0.2},{"timestamp":1767676230000,"value":0.3},{"timestamp":1767676240000,"value":0.2},{"timestamp":1767676250000,"value":0.3},{"timestamp":1767676260000,"value":0.2},{"timestamp":1767676270000,"value":0.3},{"timestamp":1767676280000,"value":0.2},{"timestamp":1767676290000,"value":0.3},{"timestamp":1767676300000,"value":0.2},{"timestamp":1767676310000,"value":0.3},{"timestamp":1767676320000,"value":0.2},{"timestamp":1767676330000,"value":0.3},{"timestamp":1767676340000,"value":0.2},{"timestamp":1767676350000,"value":0.3},{"timestamp":1767676360000,"value":0.2},{"timestamp":1767676370000,"value":0.3},{"timestamp":1767676380000,"value":0.2},{"timestamp":1767676390000,"value":0.3},{"timestamp":1767676400000,"value":0.2},{"timestamp":1767676410000,"value":0.3},{"timestamp":1767676420000,"value":0.2},{"timestamp":1767676430000,"value":0.3},{"timestamp":1767676440000,"value":0.2},{"timestamp":1767676450000,"value":0.3},{"timestamp":1767676460000,"value":0.2},{"timestamp":1767676470000,"value":0.3},{"timestamp":1767676480000,"value":0.2},{"timestamp":1767676490000,"value":0.3},{"timestamp":1767676500000,"value":0.2},{"timestamp":1767676510000,"value":0.3},{"timestamp":1767676520000,"value":0.2},{"timestamp":1767676530000,"value":0.3},{"timestamp":1767676540000,"value":0.2},{"timestamp":1767676550000,"value":0.3},{"timestamp":1767676560000,"value":0.2},{"timestamp":1767676570000,"value":0.3},{"timestamp":1767676580000,"value":0.3},{"timestamp":1767676590000,"value":0.4},{"timestamp":1767676600000,"value":0.4},{"timestamp":1767676610000,"value":0.5},{"timestamp":1767676620000,"value":0.5},{"timestamp":1767676630000,"value":0.5},{"timestamp":1767676640000,"value":0.5},{"timestamp":1767676650000,"value":0.5},{"timestamp":1767676660000,"value":0.5},{"timestamp":1767676670000,"value":0.5},{"timestamp":1767676680000,"value":0.5},{"timestamp":1767676690000,"value":0.5},{"timestamp":1767676700000,"value":0.5},{"timestamp":1767676710000,"value":0.5},{"timestamp":1767676720000,"value":0.5},{"timestamp":1767676730000,"value":0.5},{"timestamp":1767676740000,"value":0.5},{"timestamp":1767676750000,"value":0.5},{"timestamp":1767676760000,"value":0.5},{"timestamp":1767676770000,"value":0.5},{"timestamp":1767676780000,"value":0.5},{"timestamp":1767676790000,"value":0.5},{"timestamp":1767676800000,"value":0.5},{"timestamp":1767676810000,"value":0.5},{"timestamp":1767676820000,"value":0.5},{"timestamp":1767676830000,"value":0.5},{"timestamp":1767676840000,"value":0.5},{"timestamp":1767676850000,"value":0.5},{"timestamp":1767676860000,"value":0.5},{"timestamp":1767676870000,"value":0.5},{"timestamp":1767676880000,"value":0.5},{"timestamp":1767676890000,"value":0.5},{"timestamp":1767676900000,"value":0.5},{"timestamp":1767676910000,"value":0.5},{"timestamp":1767676920000,"value":0.5},{"timestamp":1767676930000,"value":0.5},{"timestamp":1767676940000,"value":0.6},{"timestamp":1767676950000,"value":0.6},{"timestamp":1767676960000,"value":0.7},{"timestamp":1767676970000,"value":0.7},{"timestamp":1767676980000,"value":0.7},{"timestamp":1767676990000,"value":0.8},{"timestamp":1767677000000,"value":0.7},{"timestamp":1767677010000,"value":0.8},{"timestamp":1767677020000,"value":0.7},{"timestamp":1767677030000,"value":0.8},{"timestamp":1767677040000,"value":0.7},{"timestamp":1767677050000,"value":0.8},{"timestamp":1767677060000,"value":0.7},{"timestamp":1767677070000,"value":0.8},{"timestamp":1767677080000,"value":0.7},{"timestamp":1767677090000,"value":0.8},{"timestamp":1767677100000,"value":0.7},{"timestamp":1767677110000,"value":0.8},{"timestamp":1767677120000,"value":0.7},{"timestamp":1767677130000,"value":0.8},{"timestamp":1767677140000,"value":0.7},{"timestamp":1767677150000,"value":0.8},{"timestamp":1767677160000,"value":0.7},{"timestamp":1767677170000,"value":0.8},{"timestamp":1767677180000,"value":0.7},{"timestamp":1767677190000,"value":0.8},{"timestamp":1767677200000,"value":0.7},{"timestamp":1767677210000,"value":0.8},{"timestamp":1767677220000,"value":0.7},{"timestamp":1767677230000,"value":0.8},{"timestamp":1767677240000,"value":0.7},{"timestamp":1767677250000,"value":0.8},{"timestamp":1767677260000,"value":0.7},{"timestamp":1767677270000,"value":0.8},{"timestamp":1767677280000,"value":0.7},{"timestamp":1767677290000,"value":0.8},{"timestamp":1767677300000,"value":0.8},{"timestamp":1767677310000,"value":0.9},{"timestamp":1767677320000,"value":0.9},{"timestamp":1767677330000,"value":0.9},{"timestamp":1767677340000,"value":1},{"timestamp":1767677350000,"value":1},{"timestamp":1767677360000,"value":1},{"timestamp":1767677370000,"value":1},{"timestamp":1767677380000,"value":1},{"timestamp":1767677390000,"value":1},{"timestamp":1767677400000,"value":1},{"timestamp":1767677410000,"value":1},{"timestamp":1767677420000,"value":1},{"timestamp":1767677430000,"value":1},{"timestamp":1767677440000,"value":1},{"timestamp":1767677450000,"value":1},{"timestamp":1767677460000,"value":1},{"timestamp":1767677470000,"value":1},{"timestamp":1767677480000,"value":1},{"timestamp":1767677490000,"value":1},{"timestamp":1767677500000,"value":1},{"timestamp":1767677510000,"value":1},{"timestamp":1767677520000,"value":1},{"timestamp":1767677530000,"value":1},{"timestamp":1767677540000,"value":1},{"timestamp":1767677550000,"value":1},{"timestamp":1767677560000,"value":1},{"timestamp":1767677570000,"value":1},{"timestamp":1767677580000,"value":1},{"timestamp":1767677590000,"value":1},{"timestamp":1767677600000,"value":1},{"timestamp":1767677610000,"value":1},{"timestamp":1767677620000,"value":1},{"timestamp":1767677630000,"value":1},{"timestamp":1767677640000,"value":1},{"timestamp":1767677650000,"value":1.1},{"timestamp":1767677660000,"value":1.1},{"timestamp":1767677670000,"value":1.1},{"timestamp":1767677680000,"value":1.1},{"timestamp":1767677690000,"value":1.2},{"timestamp":1767677700000,"value":1.3},{"timestamp":1767677710000,"value":1.2},{"timestamp":1767677720000,"value":1.4},{"timestamp":1767677730000,"value":1.2},{"timestamp":1767677740000,"value":1.3},{"timestamp":1767677750000,"value":1.2},{"timestamp":1767677760000,"value":1.3},{"timestamp":1767677770000,"value":1.2},{"timestamp":1767677780000,"value":1.3},{"timestamp":1767677790000,"value":1.2},{"timestamp":1767677800000,"value":1.3},{"timestamp":1767677810000,"value":1.2},{"timestamp":1767677820000,"value":1.3},{"timestamp":1767677830000,"value":1.2},{"timestamp":1767677840000,"value":1.3},{"timestamp":1767677850000,"value":1.2},{"timestamp":1767677860000,"value":1.3},{"timestamp":1767677870000,"value":1.2},{"timestamp":1767677880000,"value":1.3},{"timestamp":1767677890000,"value":1.2},{"timestamp":1767677900000,"value":1.3},{"timestamp":1767677910000,"value":1.2},{"timestamp":1767677920000,"value":1.3},{"timestamp":1767677930000,"value":1.2},{"timestamp":1767677940000,"value":1.3},{"timestamp":1767677950000,"value":1.2},{"timestamp":1767677960000,"value":1.3},{"timestamp":1767677970000,"value":1.2},{"timestamp":1767677980000,"value":1.3},{"timestamp":1767677990000,"value":1.2},{"timestamp":1767678000000,"value":0.9}]};
+            
+            const p95Data = timeSeries[endpoint] || [];
+            const rateData = rateTimeSeries[endpoint] || [];
+            
+            const color = colors[index % colors.length];
+            
+            // Rate chart
+            if (rateData.length > 0) {
+                const rateCtx = document.getElementById('rateChart-' + index).getContext('2d');
+                new Chart(rateCtx, {
+                    type: 'line',
+                    data: {
+                        datasets: [{
+                            label: 'Request Rate (hits/s)',
+                            data: rateData.map(p => ({ x: p.timestamp, y: p.value })),
+                            borderColor: '#E8871E',
+                            backgroundColor: 'rgba(232, 135, 30, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 1,
+                            pointHoverRadius: 5,
+                            fill: true,
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(0,0,0,0.9)',
+                                callbacks: {
+                                    label: function(context) {
+                                        return 'Rate: ' + context.parsed.y.toFixed(2) + ' hits/s';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: { unit: 'minute', displayFormats: { minute: 'HH:mm' } },
+                                title: { display: true, text: 'Time' },
+                                grid: { color: 'rgba(0,0,0,0.05)' }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: 'Request Rate (hits/s)' },
+                                grid: { color: 'rgba(0,0,0,0.05)' }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // P95 chart
+            const p95Ctx = document.getElementById('p95Chart-' + index).getContext('2d');
+            new Chart(p95Ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'P95 Latency (ms)',
+                        data: p95Data.map(p => ({ x: p.timestamp, y: p.value })),
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        borderWidth: 2,
+                        pointRadius: 1,
+                        pointHoverRadius: 5,
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.9)',
+                            callbacks: {
+                                label: function(context) {
+                                    return 'P95: ' + context.parsed.y.toFixed(1) + ' ms';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: { unit: 'minute', displayFormats: { minute: 'HH:mm' } },
+                            title: { display: true, text: 'Time' },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'P95 Latency (ms)' },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
