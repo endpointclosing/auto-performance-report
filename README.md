@@ -1,7 +1,22 @@
-# Automated Performance Reporting POC
+# Automated Performance Reporting System
 
 ## Overview
-Automated system to fetch Datadog performance metrics and generate professional Confluence reports with interactive visualizations.
+Complete end-to-end automated system that fetches Datadog performance metrics, generates professional Confluence reports with interactive visualizations, and hosts reports on GitHub Pages for instant browser access.
+
+## 🚀 Quick Start (One Command)
+
+### Complete Automation
+```bash
+node auto-report.js --from 'Feb 3, 12:33 am' --to 'Feb 3, 12:36 am' --service 'stardust-activity-log-service'
+```
+
+**What it does automatically:**
+1. ✅ **Fetches metrics** from Datadog APIs (endpoints, containers, errors)
+2. ✅ **Generates HTML** reports with interactive Chart.js visualizations  
+3. ✅ **Uploads to Confluence** with both Download + View in Browser buttons
+4. ✅ **Deploys to GitHub Pages** for instant online access
+
+**Result:** Professional reports available both in Confluence and online within 2 minutes!
 
 ## Setup Instructions
 
@@ -10,6 +25,7 @@ Automated system to fetch Datadog performance metrics and generate professional 
 - npm
 - Datadog API access
 - Confluence API access
+- GitHub repository for Pages hosting
 
 ### 1. Install Dependencies
 ```bash
@@ -17,83 +33,114 @@ npm install
 ```
 
 ### 2. Environment Configuration
-Create a `.env` file in the project root with your API credentials:
+Create a `.env` file in the project root:
 ```env
 # Datadog Configuration
-DATADOG_API_KEY=your_datadog_api_key
-DATADOG_APP_KEY=your_datadog_app_key
+DD_API_KEY=your_datadog_api_key
+DD_APP_KEY=your_datadog_app_key
+DD_SITE=datadoghq.com
 
-# Confluence Configuration
-CONFLUENCE_USERNAME=your_confluence_email
+# Confluence Configuration  
+CONFLUENCE_BASE_URL=https://yourcompany.atlassian.net
+CONFLUENCE_USER_EMAIL=your_email@company.com
 CONFLUENCE_API_TOKEN=your_confluence_api_token
 CONFLUENCE_SPACE_KEY=your_space_key
 
+# GitHub Pages Configuration
+GITHUB_PAGES_BASE_URL=https://your-username.github.io
+GITHUB_USERNAME=your-github-username
+GITHUB_REPO_NAME=your-repo-name
+
+# Environment
+ENV=staging
+
 # Load Pattern Configuration
-LOAD_PATTERN=To simulate the throughput 0.1 req/sec over the duration of 30 minutes.
+LOAD_PATTERN=To simulate the throughput in Five steps, starts with 1 req/sec for 6 mins then increased to 2 req/sec for the next 6 mins, and finally reaching to 5 req/sec for last 6 mins.
 ```
 
 ⚠️ **Important**: Never commit the `.env` file to version control as it contains sensitive API keys.
 
 ## Features
 
+### 🚀 Complete Automation
+- **Single Command**: `node auto-report.js` runs entire workflow
+- **Zero Manual Steps**: From Datadog → Confluence → GitHub Pages automatically
+- **CLI Parameters**: Flexible time ranges and service selection
+- **Error Handling**: Automatic rollback and clear error messages
+
 ### ✅ Automated Data Collection
 - Fetches metrics from Datadog API for any service
 - Collects P95/P99 latency, request rates, and error rates
-- Generates time series data (data points per endpoint)
+- Container/Pod metrics from Kubernetes
+- Error analysis with OOM detection
+- Generates time series data (6 data points per endpoint)
 - Supports custom date/time ranges
 
-### ✅ Professional Confluence Reports
+### 🌐 Dual Access Reports
+- **📥 Download Interactive Report**: Confluence attachment for offline access
+- **🌐 View in Browser**: Instant GitHub Pages hosting for stakeholder sharing
+- **Service-specific URLs**: Each report gets unique GitHub Pages URL
+- **Professional Styling**: Consistent branding across both formats
+
+### ✅ Professional Confluence Integration
 - Auto-uploads formatted reports to Confluence
 - Clean, professional styling with badges and color coding
 - Expandable sections for individual endpoints
-- Interactive charts embedded via QuickChart.io
-- Automatic page creation or updates
+- Interactive charts embedded natively
+- Automatic page creation or updates (versioned)
 
 ### ✅ Interactive HTML Reports
 - Standalone HTML with Chart.js visualizations
-- Real-time hover tooltips for data points
+- Real-time hover tooltips for data points  
 - Scatter plot: P95 vs Request Rate correlation
 - Time series charts for each endpoint
-- Fully portable - share via email or web hosting
+- Fully portable - hosted on GitHub Pages automatically
+
+### 🔧 GitHub Pages Integration
+- **Automatic Deployment**: Reports deploy to GitHub Pages instantly
+- **Environment Variables**: Configurable GitHub Pages URL
+- **Main Branch Hosting**: Direct deployment from main branch
+- **Dual File Strategy**: Service-specific + generic filenames
 
 ## Quick Start
 
-### 1. Fetch Metrics from Datadog
+### 🎯 Complete Automation (Recommended)
 ```bash
-node fetchdatadogmetrics.js --from 'Jan 3, 2:37 pm' --to 'Jan 3, 3:09 pm' --service 'stardust-activity-log-service'
+node auto-report.js --from 'Jan 14, 1:51 pm' --to 'Jan 14, 2:21 pm' --service 'stardust-communication-service'
 ```
 
 **Parameters:**
 - `--from`: Start date/time (e.g., 'Jan 13, 1:25 pm')
-- `--to`: End date/time (e.g., 'Jan 13, 1:56 pm')
-- `--service`: Service name (e.g., 'stardust-closing-requirements-service')
+- `--to`: End date/time (e.g., 'Jan 13, 1:56 pm')  
+- `--service`: Service name (e.g., 'stardust-activity-log-service')
 
-**Output:**
-- JSON file saved to `./reports/[service]_endpoint_metrics_table.json`
-- Contains metrics for all endpoints with time series data
+**Complete Output:**
+- ✅ Datadog metrics collected (endpoints, containers, errors)
+- ✅ Interactive HTML generated in `html-reports/` folder
+- ✅ Confluence page updated with download + browser view buttons
+- ✅ GitHub Pages deployment with unique service URLs
 
-### 2. Upload to Confluence
+### ⚙️ Manual Steps (Advanced Users)
+
+#### 1. Fetch Metrics Only
+```bash
+node fetchdatadogmetrics.js --from 'Jan 3, 2:37 pm' --to 'Jan 3, 3:09 pm' --service 'stardust-activity-log-service'
+```
+
+#### 2. Upload to Confluence Only
 ```bash
 node confluence-uploader.js
 ```
 
-**What it does:**
-- Auto-detects latest metrics file
-- Generates interactive HTML report
-- Uploads Confluence page with formatted content
-- Attaches interactive HTML as downloadable file
-
-**Optional parameters:**
+#### 3. Deploy to GitHub Pages Only  
 ```bash
-node confluence-uploader.js --input "reports/specific_file.json" --title "Custom Title"
+node deploy-to-main.js
 ```
 
-### 3. Generate Standalone Interactive HTML (Optional)
-```bash
-node generate-full-interactive-report.js
-```
-
-Creates `complete-interactive-report.html` with Chart.js visualizations.
+**Individual Step Outputs:**
+- **Step 1**: JSON files saved to `./reports/` directory
+- **Step 2**: Confluence page with dual-button functionality  
+- **Step 3**: GitHub Pages hosting with environment-based URLs
 
 ## Report Components
 
@@ -146,8 +193,12 @@ Expandable sections for each endpoint:
 
 ```
 Auto Performance Report Framework/
+├── � Automation Layer
+│   ├── auto-report.js                  # Complete automation orchestrator
+│   └── deploy-to-main.js               # GitHub Pages deployment
+│
 ├── 📊 Data Collection Layer
-│   ├── fetchdatadogmetrics.js          # Main orchestrator
+│   ├── fetchdatadogmetrics.js          # Main orchestrator  
 │   ├── fetch-container-metrics.js      # Kubernetes metrics
 │   └── fetch-error-metrics.js          # Error analysis
 │
@@ -156,8 +207,13 @@ Auto Performance Report Framework/
 │       └── confluenceReportGenerator.js # Report generation core
 │
 ├── 📤 Output & Integration Layer
-│   ├── confluence-uploader.js          # Confluence API client
-│   └── generate-full-interactive-report.js # Interactive HTML
+│   ├── confluence-uploader.js          # Confluence API + dual buttons
+│   └── generate-full-interactive-report.js # Interactive HTML + service-specific naming
+│
+├── 🌐 GitHub Pages Hosting
+│   └── html-reports/                   # Auto-deployed interactive reports
+│       ├── [service]-report-[date].html # Service-specific URLs
+│       └── complete-interactive-report.html # Generic download file
 │
 ├── 📁 Data Storage
 │   └── reports/                        # Metrics repository
@@ -166,7 +222,7 @@ Auto Performance Report Framework/
 │       └── [service]_error_metrics.json
 │
 ├── 🔧 Configuration Layer
-│   ├── .env                           # API credentials
+│   ├── .env                           # API credentials + GitHub Pages URL
 │   ├── package.json                   # Dependencies & scripts
 │   └── .gitignore                     # Security exclusions
 │
@@ -178,7 +234,7 @@ Auto Performance Report Framework/
 
 ```mermaid
 flowchart TD
-    A[User Command] --> B[fetchdatadogmetrics.js]
+    A[User Command: auto-report.js] --> B[fetchdatadogmetrics.js]
     B --> C[Datadog API]
     B --> D[Kubernetes Metrics]  
     B --> E[Error Logs]
@@ -187,13 +243,26 @@ flowchart TD
     D --> F
     E --> F
     
-    F --> G[confluence-uploader.js]
+    A --> G[confluence-uploader.js]
+    F --> G
     G --> H[confluenceReportGenerator.js]
     H --> I[Performance Analysis]
-    I --> J[Report Generation]
+    I --> J[Dual Button Report Generation]
     J --> K[Confluence Upload]
-    J --> L[Interactive HTML]
+    J --> L[Service-specific HTML]
+    
+    A --> M[deploy-to-main.js]
+    L --> M
+    M --> N[GitHub Pages Hosting]
+    N --> O[Online Browser Access]
 ```
+
+### 🎯 Automation Features
+- **Single Command**: Complete end-to-end automation
+- **Environment Variables**: GitHub Pages URL configuration  
+- **Dual File Strategy**: Generic download + service-specific online URLs
+- **Git Integration**: Automatic commit and push to main branch
+- **Error Handling**: Graceful fallbacks and informative error messages
 
 ### Color Scheme
 - **Service Badge**: `#0052CC` (Blue background, white text)
@@ -268,17 +337,23 @@ Share professional reports with management and teams
 
 ## Workflow Example
 
+### 🚀 New Streamlined Workflow
 ```bash
-# Step 1: Run your load test (external tool like JMeter, Gatling, etc.)
+# Step 1: Run your load test (external tool like JMeter, K6, etc.)
 
-# Step 2: Fetch the metrics from Datadog
-node fetchdatadogmetrics.js --from 'Jan 13, 1:25 pm' --to 'Jan 13, 1:56 pm' --service 'stardust-closing-requirements-service'
+# Step 2: Generate complete report automatically
+node auto-report.js --from 'Jan 13, 1:25 pm' --to 'Jan 13, 1:56 pm' --service 'stardust-closing-requirements-service'
 
-# Step 3: Upload to Confluence (automatically generates HTML)
-node confluence-uploader.js
-
-# Done! Check Confluence for your report
+# Done! Check both:
+# 📋 Confluence: Updated page with download + browser view buttons  
+# 🌐 GitHub Pages: Live report at https://your-pages-url.github.io/html-reports/service-report-date.html
 ```
+
+### 📊 What You Get
+- **Confluence Report**: Professional page with both download and online viewing options
+- **GitHub Pages**: Instant browser access for stakeholders without Confluence accounts
+- **Dual URLs**: Download for offline analysis + Online for immediate sharing
+- **Version Control**: All reports tracked in Git history
 
 ## Limitations & Notes
 
@@ -297,29 +372,39 @@ node confluence-uploader.js
 - Requires valid API and APP keys
 - Service names must match exactly
 
-## Future Enhancements
+## Key Benefits
 
-### Potential Improvements
-- [ ] Dynamic load pattern detection from time series data
-- [ ] Automatic test type classification (Stress/Spike/Soak)
-- [ ] Comparison with baseline/previous tests
-- [ ] Alert thresholds and SLA validation
-- [ ] Multiple environment support (prod vs staging comparisons)
-- [ ] Historical trend analysis
-- [ ] PDF export option
+### 🚀 Complete Automation
+- **Zero Manual Steps**: One command handles entire workflow
+- **Dual Access**: Both Confluence download and GitHub Pages browser viewing
+- **Professional Output**: Consistent styling across all output formats
+- **Version Control**: All reports tracked in Git with automatic deployment
 
-## Support
+### ⚡ Speed & Efficiency
+- **2-Minute Turnaround**: From metrics to live reports in under 2 minutes
+- **Stakeholder Ready**: Instant sharing via GitHub Pages URLs
+- **Mobile Friendly**: Interactive charts work on all devices
+- **Offline Capable**: Download option for offline analysis
 
-### Common Issues
+### 🔧 Enterprise Ready
+- **Environment Variables**: Easy configuration management
+- **Error Handling**: Robust error recovery and informative messages
+- **API Rate Limiting**: Handles Datadog API constraints gracefully
+- **Security**: Sensitive credentials stored in .env (never committed)
 
-**Issue**: "No metrics files found"
-- **Solution**: Run `fetchdatadogmetrics.js` first to generate metrics
+## Current Status
 
-**Issue**: "Confluence upload failed"
-- **Solution**: Check `.env` file for correct API credentials
+**Version**: v2.0 (Production Ready)  
+**Last Updated**: February 2026  
+**Status**: ✅ Fully Automated End-to-End System
 
-**Issue**: "Interactive HTML shows wrong service"
-- **Solution**: System auto-detects latest file. Run `node generate-full-interactive-report.js` after fetching new metrics
+### Recent Enhancements
+- ✅ Complete single-command automation
+- ✅ GitHub Pages integration with environment variables
+- ✅ Dual-button Confluence reports (Download + View in Browser)
+- ✅ Service-specific URL generation  
+- ✅ Main branch deployment (no gh-pages needed)
+- ✅ Improved error handling and git conflict resolution
 
 ## Dependencies
 
@@ -331,15 +416,15 @@ node confluence-uploader.js
 ```
 
 ## Technologies Used
-- **Node.js**: Script execution
+- **Node.js**: Script execution & automation
 - **Datadog API**: Metrics collection
-- **Confluence REST API**: Report publishing
-- **QuickChart.io**: Static chart generation
+- **Confluence REST API**: Report publishing  
+- **GitHub Pages**: Static site hosting
 - **Chart.js**: Interactive visualizations
-- **Storage Format (XHTML)**: Confluence markup
+- **Git**: Version control & automated deployment
 
 ---
 
 **Created**: January 2026  
-**Status**: POC (Proof of Concept)  
+**Status**: Production Ready ✅  
 **Maintainer**: Performance Testing Team
