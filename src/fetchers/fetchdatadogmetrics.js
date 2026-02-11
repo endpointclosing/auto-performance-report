@@ -213,6 +213,23 @@ async function fetchEndpointMetricsTable() {
         };
     }
 
+    // Separate service-level queries for combined timeline charts
+    let serviceQueries;
+    
+    if (SERVICE_NAME === 'operator-agent-service' || SERVICE_NAME === 'order-service') {
+        // FastAPI-based service-level queries - exact format as specified by user
+        serviceQueries = {
+            p95_service: `p95:trace.fastapi.request{env:${ENVIRONMENT},service:${SERVICE_NAME}}`,
+            rate_service: `autosmooth(sum:trace.fastapi.request.hits{env:${ENVIRONMENT},service:${SERVICE_NAME}}.as_rate())`
+        };
+    } else {
+        // Express-based service-level queries
+        serviceQueries = {
+            p95_service: `p95:trace.express.request{service:${SERVICE_NAME},env:${ENVIRONMENT}}`,
+            rate_service: `autosmooth(sum:trace.express.request.hits{env:${ENVIRONMENT},service:${SERVICE_NAME}}.as_rate())`
+        };
+    }
+
     console.log('Fetching metrics from Datadog...\n');
     const results = {};
 
@@ -225,6 +242,40 @@ async function fetchEndpointMetricsTable() {
             console.log(`  ✅ Got ${data.series.length} series\n`);
         } else {
             console.log(`  ⚠️  No data\n`);
+        }
+    }
+
+    // Fetch service-level queries for combined charts
+    console.log('📈 Fetching service-level metrics for combined charts...\n');
+    const serviceResults = {};
+    
+    for (const [name, query] of Object.entries(serviceQueries)) {
+        console.log(`📈 Fetching ${name}...`);
+        try {
+            const response = await axios.get(`https://api.${DD_SITE}/api/v1/query`, {
+                params: {
+                    query: query,
+                    from: from,
+                    to: to
+                },
+                headers: {
+                    'DD-API-KEY': DD_API_KEY,
+                    'DD-APPLICATION-KEY': DD_APP_KEY,
+                    'Content-Type': 'application/json'
+                },
+                httpsAgent: httpsAgent
+            });
+            
+            serviceResults[name] = response.data;
+            
+            if (response.data?.series) {
+                console.log(`  ✅ Got ${response.data.series.length} series\n`);
+            } else {
+                console.log(`  ⚠️  No data\n`);
+            }
+        } catch (error) {
+            console.error(`❌ Error fetching ${name}:`, error.response?.data || error.message);
+            serviceResults[name] = null;
         }
     }
 
@@ -326,6 +377,10 @@ async function fetchEndpointMetricsTable() {
         metrics: tableData,
         timeSeries: timeSeriesData,
         rateTimeSeries: rateTimeSeriesData,
+        serviceMetrics: {
+            p95_service: serviceResults.p95_service,
+            rate_service: serviceResults.rate_service
+        },
         rawData: results
     };
 
@@ -451,7 +506,7 @@ async function main() {
         // Automatically fetch container metrics
         console.log('\n📦 Fetching container metrics...');
         try {
-            const containerCmd = `node fetch-container-metrics.js --from "${TIME_FROM_ORIGINAL}" --to "${TIME_TO_ORIGINAL}" --service "${SERVICE_NAME}"`;
+            const containerCmd = `node src/fetchers/fetch-container-metrics.js --from "${TIME_FROM_ORIGINAL}" --to "${TIME_TO_ORIGINAL}" --service "${SERVICE_NAME}"`;
             execSync(containerCmd, { stdio: 'inherit' });
         } catch (error) {
             console.warn('⚠️  Warning: Could not fetch container metrics:', error.message);
@@ -460,7 +515,7 @@ async function main() {
         // Automatically fetch error metrics
         console.log('\n⚠️  Fetching error metrics...');
         try {
-            const errorCmd = `node fetch-error-metrics.js --from "${TIME_FROM_ORIGINAL}" --to "${TIME_TO_ORIGINAL}" --service "${SERVICE_NAME}"`;
+            const errorCmd = `node src/fetchers/fetch-error-metrics.js --from "${TIME_FROM_ORIGINAL}" --to "${TIME_TO_ORIGINAL}" --service "${SERVICE_NAME}"`;
             execSync(errorCmd, { stdio: 'inherit' });
         } catch (error) {
             console.warn('⚠️  Warning: Could not fetch error metrics:', error.message);

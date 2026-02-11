@@ -39,7 +39,7 @@ function formatDateTime(dateStr) {
     const ampm = hours >= 12 ? 'pm' : 'am';
     hours = hours % 12 || 12;
     const minutesStr = minutes < 10 ? '0' + minutes : minutes;
-    
+
     return `${month} ${day}, ${hours}:${minutesStr} ${ampm}`;
 }
 
@@ -182,11 +182,14 @@ let htmlContent = `<!DOCTYPE html>
         </div>
         
         <div class="content">
-            <!-- Scatter Plot Section -->
+            <!-- Combined Timeline Chart Section -->
             <div class="section">
-                <h2>📊 Request Rate vs P95 Latency Correlation</h2>
+                <h2>📈 Performance Timeline</h2>
+                <p style="color: #5E6C84; margin-bottom: 20px; font-size: 14px;">
+                    Request rate and response time trends over time.
+                </p>
                 <div class="chart-container">
-                    <canvas id="scatterChart"></canvas>
+                    <canvas id="combinedChart"></canvas>
                 </div>
             </div>
             
@@ -204,13 +207,13 @@ data.metrics.forEach((metric, index) => {
     const color = colors[index % colors.length];
     const timeSeries = data.timeSeries[endpoint] || [];
     const rateTimeSeries = data.rateTimeSeries?.[endpoint] || [];
-    
+
     if (timeSeries.length === 0) return;
-    
+
     const values = timeSeries.map(d => d.value);
     const avg = (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1);
     const rate = parseFloat(metric.rate.split(' ')[0]);
-    
+
     htmlContent += `
                 <div class="endpoint-section">
                     <div class="endpoint-header" onclick="toggleEndpoint(${index})">
@@ -287,89 +290,226 @@ htmlContent += `
             }
         }
         
-        // Scatter plot data
-        const scatterData = ${JSON.stringify(data.metrics.map((m, i) => ({
-            x: parseFloat(m.rate.split(' ')[0]),
-            y: parseFloat(m.p95_latency.split(' ')[0]),
-            label: m.resource_name,
-            color: colors[i % colors.length]
-        })))};
-        
         const colors = ${JSON.stringify(colors)};
         
-        // Create scatter plot
-        const scatterCtx = document.getElementById('scatterChart').getContext('2d');
-        const scatterChart = new Chart(scatterCtx, {
-            type: 'scatter',
+        // Use REAL time series data from JSON file
+        const startTime = new Date('${data.timeRange.from}');
+        const endTime = new Date('${data.timeRange.to}');
+        
+        // Load actual time series data from JSON
+        const timeSeriesData = ${JSON.stringify(data.timeSeries || {})};
+        const rateTimeSeriesData = ${JSON.stringify(data.rateTimeSeries || {})};
+        const serviceMetrics = ${JSON.stringify(data.serviceMetrics || {})};
+        console.log('Time series data loaded:', timeSeriesData);
+        console.log('Service metrics loaded:', serviceMetrics);
+        
+        // Create Combined Timeline Chart with service-level data
+        const combinedCtx = document.getElementById('combinedChart').getContext('2d');
+        
+        // Calculate service-level P95 by excluding outlier endpoints (like chat) until service queries work
+        const nonChatEndpoints = ${JSON.stringify(data.metrics.filter(m => !m.resource_name.includes('chat')))};
+        const totalRate = ${JSON.stringify(data.metrics.reduce((sum, m) => sum + parseFloat(m.rate.split(' ')[0]), 0))};
+        const totalRequests = ${JSON.stringify(data.metrics.reduce((sum, m) => sum + parseFloat(m.requests), 0))};
+        
+        // Use non-chat endpoints for more representative service P95
+        const serviceP95 = nonChatEndpoints.length > 0 ? 
+            ${JSON.stringify(data.metrics.filter(m => !m.resource_name.includes('chat')).reduce((sum, m) => {
+    const p95Value = parseFloat(m.p95_latency.split(' ')[0]);
+    const requestCount = parseFloat(m.requests);
+    return sum + (p95Value * requestCount);
+}, 0) / data.metrics.filter(m => !m.resource_name.includes('chat')).reduce((sum, m) => sum + parseFloat(m.requests), 0))} :
+            ${JSON.stringify(data.metrics.reduce((sum, m) => {
+    const p95Value = parseFloat(m.p95_latency.split(' ')[0]);
+    const requestCount = parseFloat(m.requests);
+    return sum + (p95Value * requestCount);
+}, 0) / data.metrics.reduce((sum, m) => sum + parseFloat(m.requests), 0))};
+        
+        console.log('Total rate:', totalRate.toFixed(2), 'hits/s');
+        console.log('Total requests:', totalRequests);
+        console.log('Service P95 (excluding chat outliers):', serviceP95.toFixed(1), 'ms');
+        
+        // Try to use service-level data first, then fall back to endpoint aggregation
+        let aggregatedRateTimeSeries = [];
+        let aggregatedP95TimeSeries = [];
+        
+        if (serviceMetrics && serviceMetrics.rate_service && serviceMetrics.p95_service) {
+            console.log('Using service-level metrics data');
+            
+            // Extract service-level time series data
+            if (serviceMetrics.rate_service.series && serviceMetrics.rate_service.series.length > 0) {
+                const rateSeries = serviceMetrics.rate_service.series[0];
+                aggregatedRateTimeSeries = rateSeries.pointlist.map(point => ({
+                    x: new Date(point[0]),
+                    y: point[1]
+                }));
+            }
+            
+            if (serviceMetrics.p95_service.series && serviceMetrics.p95_service.series.length > 0) {
+                const p95Series = serviceMetrics.p95_service.series[0];
+                aggregatedP95TimeSeries = p95Series.pointlist.map(point => ({
+                    x: new Date(point[0]),
+                    y: point[1] * 1000 // Convert from seconds to milliseconds
+                }));
+            }
+            
+            console.log('Using service-level time series data, points:', aggregatedP95TimeSeries.length);
+        } else if (Object.keys(timeSeriesData).length > 0) {
+            console.log('Using endpoint aggregated time series data');
+            // Use real time series data - aggregate across all endpoints
+            const allTimestamps = new Set();
+            
+            // Collect all unique timestamps from P95 data
+            Object.values(timeSeriesData).forEach(series => {
+                if (Array.isArray(series)) {
+                    series.forEach(point => allTimestamps.add(point.timestamp));
+                }
+            });
+            
+            // Sort timestamps chronologically
+            const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
+            
+            // Aggregate P95 data (average across all endpoints for each timestamp)
+            aggregatedP95TimeSeries = sortedTimestamps.map(timestamp => {
+                let totalP95 = 0;
+                let count = 0;
+                
+                Object.values(timeSeriesData).forEach(series => {
+                    if (Array.isArray(series)) {
+                        const point = series.find(p => p.timestamp === timestamp);
+                        if (point && point.value) {
+                            totalP95 += point.value;
+                            count++;
+                        }
+                    }
+                });
+                
+                return {
+                    x: new Date(timestamp),
+                    y: count > 0 ? totalP95 / count : 0
+                };
+            });
+            
+            // Aggregate Rate data (sum across all endpoints for each timestamp)
+            if (Object.keys(rateTimeSeriesData).length > 0) {
+                aggregatedRateTimeSeries = sortedTimestamps.map(timestamp => {
+                    let totalRate = 0;
+                    
+                    Object.values(rateTimeSeriesData).forEach(series => {
+                        if (Array.isArray(series)) {
+                            const point = series.find(p => p.timestamp === timestamp);
+                            if (point && point.value) {
+                                totalRate += point.value;
+                            }
+                        }
+                    });
+                    
+                    return {
+                        x: new Date(timestamp),
+                        y: totalRate
+                    };
+                });
+            } else {
+                // Fallback: Create rate data based on calculated total
+                aggregatedRateTimeSeries = sortedTimestamps.map(timestamp => ({
+                    x: new Date(timestamp),
+                    y: totalRate
+                }));
+            }
+            
+            console.log('Using real time series data, points:', aggregatedP95TimeSeries.length);
+        } else {
+            console.log('No time series data available, using aggregate values');
+            // Create simple two-point series for start and end using service-level P95
+            aggregatedRateTimeSeries = [{ x: startTime, y: totalRate }, { x: endTime, y: totalRate }];
+            aggregatedP95TimeSeries = [{ x: startTime, y: serviceP95 }, { x: endTime, y: serviceP95 }];
+        }
+        
+        new Chart(combinedCtx, {
+            type: 'line',
             data: {
-                datasets: scatterData.map((point, idx) => ({
-                    label: point.label.replace(/_/g, ' '),
-                    data: [{ x: point.x, y: point.y }],
-                    backgroundColor: point.color,
-                    borderColor: point.color,
-                    borderWidth: 2,
-                    pointRadius: 8,
-                    pointHoverRadius: 12
-                }))
+                datasets: [
+                    {
+                        label: 'Request Rate (hits/s)',
+                        data: aggregatedRateTimeSeries,
+                        borderColor: '#4A90E2',
+                        backgroundColor: 'rgba(74, 144, 226, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        fill: true,
+                        tension: 0.4,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'P95 Latency (ms)',
+                        data: aggregatedP95TimeSeries,
+                        borderColor: '#F5A623',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        fill: false,
+                        tension: 0.2,
+                        yAxisID: 'y1'
+                    }
+                ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    title: {
-                        display: true,
-                        text: 'Request Rate vs P95 Latency',
+                    title: { 
+                        display: true, 
+                        text: \`${data.service} Performance Metrics\`,
                         font: { size: 18, weight: 'bold' }
                     },
-                    legend: {
-                        display: true,
-                        position: 'right',
-                        labels: { font: { size: 11 }, boxWidth: 12, padding: 10 },
-                        onClick: function(e, legendItem, legend) {
-                            const index = legendItem.datasetIndex;
-                            const chart = legend.chart;
-                            
-                            // Check if this is the only visible dataset
-                            const visibleCount = chart.data.datasets.filter((ds, i) => chart.isDatasetVisible(i)).length;
-                            const isOnlyOneVisible = visibleCount === 1 && chart.isDatasetVisible(index);
-                            
-                            if (isOnlyOneVisible) {
-                                // If only this one is visible, show all
-                                chart.data.datasets.forEach((dataset, i) => {
-                                    chart.show(i);
-                                });
-                            } else {
-                                // Hide all others, show only this one
-                                chart.data.datasets.forEach((dataset, i) => {
-                                    if (i === index) {
-                                        chart.show(i);
-                                    } else {
-                                        chart.hide(i);
-                                    }
-                                });
-                            }
-                        }
-                    },
+                    legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 12, padding: 10 } },
                     tooltip: {
                         backgroundColor: 'rgba(0,0,0,0.9)',
-                        padding: 12,
                         callbacks: {
                             label: function(context) {
-                                return context.dataset.label + ': ' + context.parsed.x.toFixed(2) + ' req/s, P95: ' + context.parsed.y.toFixed(1) + ' ms';
+                                const isRate = context.datasetIndex === 0;
+                                const unit = isRate ? ' hits/s' : ' ms';
+                                const value = context.parsed.y.toFixed(isRate ? 2 : 1);
+                                return context.dataset.label + ': ' + value + unit;
                             }
                         }
                     }
                 },
                 scales: {
                     x: {
-                        title: { display: true, text: 'Request Rate (hits/s)', font: { size: 14, weight: '600' } },
-                        beginAtZero: true,
-                        grid: { color: 'rgba(0,0,0,0.05)' }
+                        type: 'time',
+                        time: { displayFormats: { minute: 'HH:mm' } },
+                        title: { display: true, text: 'Time', font: { size: 14, weight: '600' } }
                     },
                     y: {
-                        title: { display: true, text: 'P95 Latency (ms)', font: { size: 14, weight: '600' } },
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: { 
+                            display: true, 
+                            text: 'Request Rate (hits/s)', 
+                            font: { size: 14, weight: '600' }, 
+                            color: '#4A90E2' 
+                        },
                         beginAtZero: true,
-                        grid: { color: 'rgba(0,0,0,0.05)' }
+                        grid: { drawOnChartArea: true },
+                        ticks: { color: '#4A90E2' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: { 
+                            display: true, 
+                            text: 'P95 Latency (ms)', 
+                            font: { size: 14, weight: '600' }, 
+                            color: '#F5A623' 
+                        },
+                        beginAtZero: true,
+                        grid: { drawOnChartArea: false },
+                        ticks: { color: '#F5A623' }
                     }
                 }
             }

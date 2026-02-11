@@ -42,7 +42,7 @@ class ConfluenceReportGenerator {
     validateConfig() {
         const required = ['baseUrl', 'userEmail', 'apiToken', 'spaceKey'];
         const missing = required.filter(key => !this.confluenceConfig[key]);
-        
+
         if (missing.length > 0) {
             console.warn(`⚠️  Missing Confluence config: ${missing.join(', ')}`);
             console.warn('   Upload functionality will be disabled.');
@@ -71,13 +71,13 @@ class ConfluenceReportGenerator {
         const environment = data.environment || 'staging';
         const fromTs = (data.timeRange.from_unix * 1000).toString(); // Convert to milliseconds
         const toTs = (data.timeRange.to_unix * 1000).toString();
-        
+
         // Service-specific dashboard URLs
         const dashboardIds = {
             'order-service': '6w9-8tv-qj4',
             'operator-agent-service': '6w9-8tv-qj4'
         };
-        
+
         const dashboardId = dashboardIds[service] || '9tc-enb-57g'; // Default fallback
         const baseUrl = `https://endpointclosing.datadoghq.com/dashboard/${dashboardId}`;
         const params = new URLSearchParams({
@@ -97,7 +97,7 @@ class ConfluenceReportGenerator {
             'to_ts': toTs,
             'live': 'false'
         });
-        
+
         return `${baseUrl}?${params.toString()}`;
     }
 
@@ -109,10 +109,10 @@ class ConfluenceReportGenerator {
         const environment = data.environment || 'staging';
         const fromTs = data.timeRange.from_unix * 1000; // Convert to milliseconds
         const toTs = data.timeRange.to_unix * 1000;
-        
+
         // Base logs URL
         const baseUrl = 'https://endpointclosing.datadoghq.com/logs';
-        
+
         // Use the successful query from error metrics if available, otherwise fallback to default
         let query;
         if (data.errorMetrics?.logSummary?.successfulQuery) {
@@ -121,7 +121,7 @@ class ConfluenceReportGenerator {
             // Fallback to default query format
             query = `service:${service} status:error OR level:error env:${environment}`;
         }
-        
+
         const params = new URLSearchParams({
             'query': query,
             'agg_m': 'count',
@@ -139,7 +139,7 @@ class ConfluenceReportGenerator {
             'to_ts': toTs.toString(),
             'live': 'false'
         });
-        
+
         return `${baseUrl}?${params.toString()}`;
     }
 
@@ -192,19 +192,22 @@ class ConfluenceReportGenerator {
 
     generateDetailedReport(data) {
         let content = '';
-        
+
+        // Add Overall Observations section FIRST for immediate visibility
+        content += this.generateObservationsSection(data);
+
         // Add Objective section
         content += this.generateObjectiveSection(data);
-        
+
         // Add Test Scope & Design section
         content += this.generateTestScopeSection(data);
-        
+
         // Add Pod/Container Metrics section if available
         content += this.generatePodMetricsSection(data);
-        
+
         // Add Endpoints section
         content += '<h2 style="' + this.getFontStyles().headerFont + ' color: #172B4D; border-bottom: 3px solid #0052CC; padding-bottom: 8px; margin-top: 30px; font-weight: bold;"><span style="background-color: #0052CC; color: white; padding: 4px 12px; border-radius: 3px;">📋 Endpoint Performance Summary</span></h2>';
-        
+
         // Add disclaimer about metric values
         content += '<ac:structured-macro ac:name="info" ac:schema-version="1">';
         content += '<ac:rich-text-body>';
@@ -213,7 +216,7 @@ class ConfluenceReportGenerator {
         content += 'Trends and relative comparisons between endpoints remain accurate for performance analysis.</p>';
         content += '</ac:rich-text-body>';
         content += '</ac:structured-macro>';
-        
+
         // Performance table in Datadog format
         content += '<table data-table-width="1200">';
         content += '<colgroup><col width="250"/><col width="140"/><col width="140"/><col width="140"/><col width="140"/><col width="120"/><col width="140"/></colgroup>';
@@ -257,21 +260,18 @@ class ConfluenceReportGenerator {
             content += this.generateOOMEventsSection(data.errorMetrics.oomSummary);
         }
 
-        // Add Overall Observations section
-        content += this.generateObservationsSection(data);
-
         return content;
     }
 
     generateP95ChartSection(data) {
         let content = '<h2 style="' + this.getFontStyles().headerFont + ' color: #172B4D; border-bottom: 3px solid #0052CC; padding-bottom: 8px; margin-top: 30px; font-weight: bold;"><span style="background-color: #0052CC; color: white; padding: 4px 12px; border-radius: 3px;">📊 P95 Latency Time Series Analysis</span></h2>';
-        
+
         // Generate unique GitHub Pages URL (service-specific)
         const serviceName = data.service || 'report';
         const timestamp = new Date().toISOString().split('T')[0];
         const htmlFileName = `${serviceName}-report-${timestamp}.html`;
         const githubPagesUrl = `https://endpointclosing.github.io/auto-performance-report/html-reports/${htmlFileName}`;
-        
+
         // Add interactive report download link and view in browser button in a styled box
         content += '<div style="background-color: #F4F5F7; border-left: 4px solid #00875A; padding: 12px 20px; margin: 15px 0; border-radius: 3px;">';
         content += '<p style="margin: 0 0 10px 0;"><strong>📥 Download Interactive Report:</strong> ';
@@ -280,7 +280,7 @@ class ConfluenceReportGenerator {
         content += '<ac:plain-text-link-body><![CDATA[complete-interactive-report.html]]></ac:plain-text-link-body>';
         content += '</ac:link>';
         content += ' for real-time hover tooltips</p>';
-        
+
         // Add View in Browser button with unique service URL
         content += '<p style="margin: 0;">';
         content += `<a href="${githubPagesUrl}" target="_blank" style="display: inline-block; background-color: #0052CC; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-weight: bold;">`;
@@ -289,23 +289,23 @@ class ConfluenceReportGenerator {
         content += '</p>';
         content += '</div>';
         content += '<style>a[href] { font-weight: bold; }</style>';
-        
+
         // Generate Confluence native charts
         content += this.generateConfluenceNativeCharts(data);
-        
+
         return content;
     }
 
     generateConfluenceNativeCharts(data) {
         let content = '';
         const colors = ['#632CA6', '#F84D8C', '#19A974', '#E8871E', '#3D4EB8', '#C93854', '#137CBD', '#00BF87', '#DB3737', '#8F398F'];
-        
+
         // Individual endpoint time series charts section
         content += '<h3 style="' + this.getFontStyles().headerFont + ' color: #172B4D; margin-top: 25px; margin-bottom: 10px; font-weight: bold;"><span style="background-color: #0052CC; color: white; padding: 4px 12px; border-radius: 3px;">📈 Individual Endpoint Time Series</span></h3>';
         content += '<div style="background-color: #F4F5F7; padding: 10px 15px; margin-bottom: 15px; border-radius: 3px;">';
         content += '<p style="margin: 0; color: #172B4D; font-weight: 500;">Each section shows P95 latency over time with request rate context. Click to expand endpoint details.</p>';
         content += '</div>';
-        
+
         Object.keys(data.timeSeries).forEach((endpoint, index) => {
             const metric = data.metrics.find(m => m.resource_name === endpoint);
             const timeSeries = data.timeSeries[endpoint];
@@ -314,11 +314,11 @@ class ConfluenceReportGenerator {
             const avg = (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1);
             const color = colors[index % colors.length];
             const rate = parseFloat(metric.rate.split(' ')[0]);
-            
+
             content += '<ac:structured-macro ac:name="expand" ac:schema-version="1">';
             content += `<ac:parameter ac:name="title">${index + 1}. ${endpoint}</ac:parameter>`;
             content += '<ac:rich-text-body>';
-            
+
             // Add performance summary at top
             content += '<table style="margin-bottom: 15px; width: 700px; background-color: #f4f5f7;">';
             content += '<tbody>';
@@ -329,20 +329,20 @@ class ConfluenceReportGenerator {
             content += `<td style="padding: 8px;"><strong>P99 Latency:</strong> ${metric.p99_latency}</td>`;
             content += '</tr>';
             content += '</tbody></table>';
-            
+
             // Create dual-axis chart: Rate vs P95 over time
             const chartLabels = timeSeries.map((point, idx) => {
                 if (idx % 6 === 0 || idx === timeSeries.length - 1) {
-                    return new Date(point.timestamp).toLocaleTimeString('en-US', { 
-                        hour: '2-digit', minute: '2-digit', hour12: false 
+                    return new Date(point.timestamp).toLocaleTimeString('en-US', {
+                        hour: '2-digit', minute: '2-digit', hour12: false
                     });
                 }
                 return '';
             });
-            
+
             const p95Data = timeSeries.map(point => point.value.toFixed(1));
             const rateData = rateTimeSeries.length > 0 ? rateTimeSeries.map(point => point.value.toFixed(2)) : [];
-            
+
             // Create Request Rate over Time chart (if data available)
             if (rateData.length > 0) {
                 content += '<p><strong>Request Rate Over Time:</strong></p>';
@@ -372,11 +372,11 @@ class ConfluenceReportGenerator {
                         }
                     }
                 };
-                
+
                 const rateChartUrl = 'https://quickchart.io/chart?width=700&height=280&c=' + encodeURIComponent(JSON.stringify(rateChart));
                 content += `<p><ac:image ac:width="700"><ri:url ri:value="${rateChartUrl}"/></ac:image></p>`;
             }
-            
+
             // Create P95 Latency over Time chart
             content += '<p><strong>P95 Latency Over Time:</strong></p>';
             const p95Chart = {
@@ -405,15 +405,15 @@ class ConfluenceReportGenerator {
                     }
                 }
             };
-            
+
             const p95ChartUrl = 'https://quickchart.io/chart?width=700&height=280&c=' + encodeURIComponent(JSON.stringify(p95Chart));
             content += `<p><ac:image ac:width="700"><ri:url ri:value="${p95ChartUrl}"/></ac:image></p>`;
-            
+
             // Stats table
             const min = Math.min(...values).toFixed(1);
             const max = Math.max(...values).toFixed(1);
             const median = this.calculateMedian(values).toFixed(1);
-            
+
             content += '<table style="margin-top: 15px; width: 600px;">';
             content += '<tbody>';
             content += '<tr><td style="width: 150px;"><strong>Data Points:</strong></td><td>' + timeSeries.length + '</td>';
@@ -423,11 +423,11 @@ class ConfluenceReportGenerator {
             content += '<tr><td><strong>Max:</strong></td><td>' + max + ' ms</td>';
             content += '<td><strong>P99:</strong></td><td>' + metric.p99_latency + '</td></tr>';
             content += '</tbody></table>';
-            
+
             content += '</ac:rich-text-body>';
             content += '</ac:structured-macro>';
         });
-        
+
         return content;
     }
 
@@ -440,8 +440,8 @@ class ConfluenceReportGenerator {
     generateErrorSummarySection(errorMetrics, data) {
         if (!errorMetrics) return '';
 
-        const hasErrors = errorMetrics.logSummary.totalLogErrors > 0 || 
-                         errorMetrics.traceSummary.totalErrors > 0;
+        const hasErrors = errorMetrics.logSummary.totalLogErrors > 0 ||
+            errorMetrics.traceSummary.totalErrors > 0;
 
         let content = '<h2 style="' + this.getFontStyles().headerFont + ' color: #172B4D; border-bottom: 3px solid #DE350B; padding-bottom: 8px; margin-top: 25px; font-weight: bold;"><span style="background-color: #DE350B; color: white; padding: 4px 12px; border-radius: 3px;">⚠️ Error Summary</span></h2>';
 
@@ -467,11 +467,11 @@ class ConfluenceReportGenerator {
             content += '<td><p style="' + this.getFontStyles().tableFont + '"><strong>Application Log Errors</strong></p></td>';
             content += '<td><p style="' + this.getFontStyles().tableFont + ' color: #DE350B;"><strong>' + errorMetrics.logSummary.totalLogErrors + '</strong></p></td>';
             content += '<td>';
-            
+
             // Add Datadog logs link
             const logsUrl = this.generateDatadogLogsUrl(data);
             content += '<p style="' + this.getFontStyles().smallFont + ' margin-bottom: 8px;"><a href="' + logsUrl + '" target="_blank" style="color: #0052CC; text-decoration: none; font-weight: 600;">🔗 View in Datadog Logs</a></p>';
-            
+
             // Top error messages
             const topErrors = errorMetrics.logSummary.errorsByMessage.slice(0, 5);
             if (topErrors.length > 0) {
@@ -541,31 +541,77 @@ class ConfluenceReportGenerator {
         const observations = this.analyzePerformanceData(data);
 
         // Performance Status Badge
-        const statusColor = observations.overallStatus === 'good' ? '#00875A' : 
-                           observations.overallStatus === 'warning' ? '#FF991F' : '#DE350B';
-        const statusBg = observations.overallStatus === 'good' ? '#E3FCEF' : 
-                        observations.overallStatus === 'warning' ? '#FFFAE6' : '#FFEBE6';
-        const statusText = observations.overallStatus === 'good' ? '✅ Acceptable Performance' : 
-                          observations.overallStatus === 'warning' ? '⚠️ Performance Concerns' : '❌ Critical Issues';
+        const statusColor = observations.overallStatus === 'good' ? '#00875A' :
+            observations.overallStatus === 'warning' ? '#FF991F' : '#DE350B';
+        const statusBg = observations.overallStatus === 'good' ? '#E3FCEF' :
+            observations.overallStatus === 'warning' ? '#FFFAE6' : '#FFEBE6';
+        const statusText = observations.overallStatus === 'good' ? '✅ Acceptable Performance' :
+            observations.overallStatus === 'warning' ? '⚠️ Performance Concerns' : '❌ Critical Issues';
 
         content += '<div style="background-color: ' + statusBg + '; border-left: 4px solid ' + statusColor + '; padding: 15px 20px; margin: 15px 0; border-radius: 3px;">';
         content += '<p style="' + this.getFontStyles().emphasisFont + ' margin: 0; color: ' + statusColor + ';"><strong>' + statusText + '</strong></p>';
         content += '</div>';
 
-        // Key Findings
-        content += '<h3 style="' + this.getFontStyles().subheaderFont + '">📊 Key Findings:</h3>';
+        // Key Findings with color indicators
+        content += '<h3 style="' + this.getFontStyles().subheaderFont + '"><span style="background-color: #0052CC; color: white; padding: 4px 8px; border-radius: 3px; font-size: 12px; font-weight: 600; margin-right: 8px;">📊</span>Key Findings:</h3>';
         content += '<ul style="margin: 10px 0; padding-left: 30px;">';
         observations.findings.forEach(finding => {
-            content += '<li style="' + this.getFontStyles().bodyFont + ' margin: 8px 0;">' + finding + '</li>';
+            // Determine if finding indicates an issue or clear status
+            const isIssue = finding.toLowerCase().includes('high') ||
+                finding.toLowerCase().includes('error') ||
+                finding.toLowerCase().includes('failed') ||
+                finding.toLowerCase().includes('restart') ||
+                finding.toLowerCase().includes('critical') ||
+                finding.toLowerCase().includes('warning') ||
+                finding.toLowerCase().includes('spike') ||
+                finding.toLowerCase().includes('exceed');
+
+            const isClear = finding.toLowerCase().includes('no errors') ||
+                finding.toLowerCase().includes('stable') ||
+                finding.toLowerCase().includes('acceptable') ||
+                finding.toLowerCase().includes('normal') ||
+                finding.toLowerCase().includes('good') ||
+                finding.toLowerCase().includes('within limits');
+
+            let colorStyle = '';
+            if (isIssue) {
+                colorStyle = ' color: #DE350B; font-weight: bold;'; // Red and bold for issues
+            } else if (isClear) {
+                colorStyle = ' color: #00875A;'; // Green for clear status
+            }
+
+            content += '<li style="' + this.getFontStyles().bodyFont + colorStyle + ' margin: 8px 0;">' + finding + '</li>';
         });
         content += '</ul>';
 
-        // Recommendations
+        // Recommendations with color indicators
         if (observations.recommendations.length > 0) {
             content += '<h3 style="' + this.getFontStyles().subheaderFont + '">💡 Recommendations:</h3>';
             content += '<ul style="margin: 10px 0; padding-left: 30px;">';
             observations.recommendations.forEach(rec => {
-                content += '<li style="' + this.getFontStyles().bodyFont + ' margin: 8px 0;">' + rec + '</li>';
+                // Recommendations for action are typically red/bold, positive ones are green
+                const requiresAction = rec.toLowerCase().includes('consider') ||
+                    rec.toLowerCase().includes('investigate') ||
+                    rec.toLowerCase().includes('monitor') ||
+                    rec.toLowerCase().includes('optimize') ||
+                    rec.toLowerCase().includes('improve') ||
+                    rec.toLowerCase().includes('review') ||
+                    rec.toLowerCase().includes('should') ||
+                    rec.toLowerCase().includes('need');
+
+                const isPositive = rec.toLowerCase().includes('maintain') ||
+                    rec.toLowerCase().includes('continue') ||
+                    rec.toLowerCase().includes('no action') ||
+                    rec.toLowerCase().includes('performing well');
+
+                let colorStyle = '';
+                if (requiresAction) {
+                    colorStyle = ' color: #DE350B; font-weight: bold;'; // Red and bold for action items
+                } else if (isPositive) {
+                    colorStyle = ' color: #00875A;'; // Green for positive recommendations
+                }
+
+                content += '<li style="' + this.getFontStyles().bodyFont + colorStyle + ' margin: 8px 0;">' + rec + '</li>';
             });
             content += '</ul>';
         }
@@ -575,7 +621,7 @@ class ConfluenceReportGenerator {
 
     generateSummaryObservations(data) {
         const observations = [];
-        
+
         // Get restart count only for monitoring window
         let windowRestarts = 0;
         let restartedPods = 0;
@@ -583,66 +629,66 @@ class ConfluenceReportGenerator {
             const restartTiming = this.analyzeRestartTiming(data.podMetrics);
             const validRestarts = data.podMetrics.podMetrics.filter(pod => {
                 const podTiming = restartTiming[pod.podName];
-                return pod.restarts && pod.restarts > 0 && 
-                       (!podTiming || !podTiming.exactTime || !podTiming.exactTime.includes('Before'));
+                return pod.restarts && pod.restarts > 0 &&
+                    (!podTiming || !podTiming.exactTime || !podTiming.exactTime.includes('Before'));
             });
             windowRestarts = validRestarts.reduce((sum, pod) => sum + (pod.restarts || 0), 0);
             restartedPods = validRestarts.length;
         }
-        
+
         // Pod restarts summary
         if (windowRestarts > 0) {
             observations.push(`Pod Restarts: ${windowRestarts} restart(s) across ${restartedPods} pod(s) during monitoring window`);
         }
-        
+
         // High latency detection
         if (data.endpointMetrics && data.endpointMetrics.length > 0) {
-            const highLatencyEndpoints = data.endpointMetrics.filter(endpoint => 
+            const highLatencyEndpoints = data.endpointMetrics.filter(endpoint =>
                 endpoint.p95_latency && endpoint.p95_latency > 1000 // > 1 second
             );
             if (highLatencyEndpoints.length > 0) {
-                const worstEndpoint = highLatencyEndpoints.reduce((worst, current) => 
+                const worstEndpoint = highLatencyEndpoints.reduce((worst, current) =>
                     current.p95_latency > worst.p95_latency ? current : worst
                 );
-                observations.push(`Performance Issues: High P95 latency (${(worstEndpoint.p95_latency/1000).toFixed(1)}+ seconds) on ${worstEndpoint.resource_name} endpoint`);
+                observations.push(`Performance Issues: High P95 latency (${(worstEndpoint.p95_latency / 1000).toFixed(1)}+ seconds) on ${worstEndpoint.resource_name} endpoint`);
             }
         }
-        
+
         // Error rate detection
         if (data.endpointMetrics && data.endpointMetrics.length > 0) {
-            const errorEndpoints = data.endpointMetrics.filter(endpoint => 
+            const errorEndpoints = data.endpointMetrics.filter(endpoint =>
                 endpoint.error_rate && endpoint.error_rate > 0
             );
             if (errorEndpoints.length > 0) {
-                const worstErrorEndpoint = errorEndpoints.reduce((worst, current) => 
+                const worstErrorEndpoint = errorEndpoints.reduce((worst, current) =>
                     current.error_rate > worst.error_rate ? current : worst
                 );
                 observations.push(`Error Rate: ${worstErrorEndpoint.error_rate.toFixed(2)}% error rate on ${worstErrorEndpoint.resource_name} endpoint with ${worstErrorEndpoint.errors} errors`);
             }
         }
-        
+
         // Application errors summary
         if (data.errorMetrics?.logSummary?.totalLogErrors > 0) {
             observations.push(`Application Errors: ${data.errorMetrics.logSummary.totalLogErrors} log errors detected during monitoring window`);
         }
-        
+
         // Overall throughput
         if (data.endpointMetrics && data.endpointMetrics.length > 0) {
             const totalRequests = data.endpointMetrics.reduce((sum, endpoint) => sum + (endpoint.requests || 0), 0);
             if (totalRequests > 0) {
-                const timeRangeMinutes = data.timeRange ? 
+                const timeRangeMinutes = data.timeRange ?
                     (new Date(data.timeRange.to) - new Date(data.timeRange.from)) / (1000 * 60) : 30;
                 const avgRate = (totalRequests / timeRangeMinutes).toFixed(2);
                 observations.push(`Throughput: ${totalRequests} total requests over ${timeRangeMinutes.toFixed(0)} minutes (avg: ${avgRate} req/min)`);
             }
         }
-        
+
         return observations;
     }
 
     generateSummaryObservations(data) {
         const observations = [];
-        
+
         // Get restart count only for monitoring window
         let windowRestarts = 0;
         let restartedPods = 0;
@@ -650,85 +696,85 @@ class ConfluenceReportGenerator {
             const restartTiming = this.analyzeRestartTiming(data.podMetrics);
             const validRestarts = data.podMetrics.podMetrics.filter(pod => {
                 const podTiming = restartTiming[pod.podName];
-                return pod.restarts && pod.restarts > 0 && 
-                       (podTiming && podTiming.duringWindow !== false);
+                return pod.restarts && pod.restarts > 0 &&
+                    (podTiming && podTiming.duringWindow !== false);
             });
             windowRestarts = validRestarts.reduce((sum, pod) => sum + (pod.restarts || 0), 0);
             restartedPods = validRestarts.length;
         }
-        
+
         // Pod restarts summary
         if (windowRestarts > 0) {
             observations.push(`Pod Restarts: ${windowRestarts} restart(s) across ${restartedPods} pod(s) during monitoring window`);
         }
-        
+
         // High latency detection
         if (data.endpointMetrics && data.endpointMetrics.length > 0) {
-            const highLatencyEndpoints = data.endpointMetrics.filter(endpoint => 
+            const highLatencyEndpoints = data.endpointMetrics.filter(endpoint =>
                 endpoint.p95_latency && endpoint.p95_latency > 1000 // > 1 second
             );
             if (highLatencyEndpoints.length > 0) {
-                const worstEndpoint = highLatencyEndpoints.reduce((worst, current) => 
+                const worstEndpoint = highLatencyEndpoints.reduce((worst, current) =>
                     current.p95_latency > worst.p95_latency ? current : worst
                 );
-                observations.push(`Performance Issues: High P95 latency (${(worstEndpoint.p95_latency/1000).toFixed(1)}+ seconds) on ${worstEndpoint.resource_name} endpoint`);
+                observations.push(`Performance Issues: High P95 latency (${(worstEndpoint.p95_latency / 1000).toFixed(1)}+ seconds) on ${worstEndpoint.resource_name} endpoint`);
             }
         }
-        
+
         // Error rate detection
         if (data.endpointMetrics && data.endpointMetrics.length > 0) {
-            const errorEndpoints = data.endpointMetrics.filter(endpoint => 
+            const errorEndpoints = data.endpointMetrics.filter(endpoint =>
                 endpoint.error_rate && endpoint.error_rate > 0
             );
             if (errorEndpoints.length > 0) {
-                const worstErrorEndpoint = errorEndpoints.reduce((worst, current) => 
+                const worstErrorEndpoint = errorEndpoints.reduce((worst, current) =>
                     current.error_rate > worst.error_rate ? current : worst
                 );
                 observations.push(`Error Rate: ${worstErrorEndpoint.error_rate.toFixed(2)}% error rate on ${worstErrorEndpoint.resource_name} endpoint with ${worstErrorEndpoint.errors} errors`);
             }
         }
-        
+
         // Application errors summary
         if (data.errorMetrics?.logSummary?.totalLogErrors > 0) {
             observations.push(`Application Errors: ${data.errorMetrics.logSummary.totalLogErrors} log errors detected during monitoring window`);
         }
-        
+
         // Overall throughput
         if (data.endpointMetrics && data.endpointMetrics.length > 0) {
             const totalRequests = data.endpointMetrics.reduce((sum, endpoint) => sum + (endpoint.requests || 0), 0);
             if (totalRequests > 0) {
-                const timeRangeMinutes = data.timeRange ? 
+                const timeRangeMinutes = data.timeRange ?
                     (new Date(data.timeRange.to) - new Date(data.timeRange.from)) / (1000 * 60) : 30;
                 const avgRate = (totalRequests / timeRangeMinutes).toFixed(2);
                 observations.push(`Throughput: ${totalRequests} total requests over ${timeRangeMinutes.toFixed(0)} minutes (avg: ${avgRate} req/min)`);
             }
         }
-        
+
         return observations;
     }
 
     analyzeRestartTiming(podMetricsData) {
         const restartTiming = {};
-        
+
         // Check if we have restart time series data
         if (podMetricsData.timeSeries && podMetricsData.timeSeries.restarts && podMetricsData.timeSeries.restarts.series) {
             const restartSeries = podMetricsData.timeSeries.restarts.series;
             const monitoringStart = new Date(podMetricsData.timeSeries.restarts.from_date);
             const monitoringEnd = new Date(podMetricsData.timeSeries.restarts.to_date);
-            
+
             for (const series of restartSeries) {
                 // Extract pod name from expression
                 const podNameMatch = series.expression.match(/pod_name:([\w-]+)/);
                 if (podNameMatch && series.pointlist && series.pointlist.length > 0) {
                     const podName = podNameMatch[1];
                     const points = series.pointlist;
-                    
+
                     // Check if restart count increases during monitoring window
                     let restartIncrease = false;
                     let latestRestartTime = null;
                     let startValue = points[0][1];
                     let maxValue = startValue;
-                    
+
                     for (let i = 1; i < points.length; i++) {
                         const [timestamp, value] = points[i];
                         if (value > maxValue) {
@@ -738,15 +784,15 @@ class ConfluenceReportGenerator {
                             maxValue = value;
                         }
                     }
-                    
+
                     if (latestRestartTime) {
                         // Restart occurred during monitoring window
                         const restartDate = new Date(latestRestartTime);
                         restartTiming[podName] = {
-                            exactTime: restartDate.toLocaleString('en-US', { 
+                            exactTime: restartDate.toLocaleString('en-US', {
                                 month: 'short',
                                 day: 'numeric',
-                                hour: '2-digit', 
+                                hour: '2-digit',
                                 minute: '2-digit',
                                 second: '2-digit',
                                 hour12: true,
@@ -760,7 +806,7 @@ class ConfluenceReportGenerator {
                             exactTime: `Before ${monitoringStart.toLocaleString('en-US', {
                                 month: 'short',
                                 day: 'numeric',
-                                hour: '2-digit', 
+                                hour: '2-digit',
                                 minute: '2-digit',
                                 hour12: true,
                                 timeZone: 'America/New_York'
@@ -771,7 +817,7 @@ class ConfluenceReportGenerator {
                 }
             }
         }
-        
+
         return restartTiming;
     }
 
@@ -783,7 +829,7 @@ class ConfluenceReportGenerator {
             const podMemData = memMetrics?.find(m => m.podName === pod.podName);
             return podMemData && podMemData.maxMemory > 90;
         });
-        
+
         if (hasHighMemory) {
             return 'High memory usage detected - likely OOM (Out of Memory) kills';
         }
@@ -799,14 +845,98 @@ class ConfluenceReportGenerator {
         return 'Monitor for patterns - may be related to deployment updates or transient issues';
     }
 
+    /**
+     * Analyze MCP Tools latency for operator-agent-service - COMMENTED OUT
+     * Looks for async_tool_execution operations with high latency
+     */
+    /*
+    analyzeMCPToolsLatency(data) {
+        const slowTools = [];
+        
+        // Look for endpoint patterns that match MCP tool execution
+        // MCP tools typically show up as endpoints with specific patterns
+        if (data.metrics && data.metrics.length > 0) {
+            console.log('🔍 Analyzing MCP tools for:', data.service);
+            console.log('📊 Found', data.metrics.length, 'metrics to analyze');
+            
+            // Filter for potential MCP tool endpoints - these would be operation-based metrics
+            const toolEndpoints = data.metrics.filter(metric => {
+                const resourceName = metric.resource_name || '';
+                let p95 = 0;
+                
+                // Parse P95 latency - handle both "21206.2 ms" format and raw numbers
+                if (typeof metric.p95_latency === 'string') {
+                    const latencyStr = metric.p95_latency.replace(/[^0-9.]/g, ''); // Remove 'ms' and other chars
+                    p95 = parseFloat(latencyStr) || 0;
+                } else {
+                    p95 = parseFloat(metric.p95_latency || 0);
+                }
+                
+                console.log('🔍 Checking endpoint:', resourceName, 'P95:', p95, 'ms');
+                
+                // Look for endpoints with > 1 second (1000ms) latency
+                const isSlowEndpoint = p95 > 1000;
+                
+                // For operator-agent-service, consider any slow endpoint as a potential tool
+                // This includes chat endpoints which might be executing MCP tools
+                if (isSlowEndpoint) {
+                    console.log('⚠️ Found slow endpoint:', resourceName, 'with', p95, 'ms latency');
+                }
+                
+                return isSlowEndpoint;
+            });
+            
+            console.log('🎯 Found', toolEndpoints.length, 'slow endpoints to analyze as MCP tools');
+            
+            // Convert to the format shown in the example
+            toolEndpoints.forEach(endpoint => {
+                let p95 = 0;
+                if (typeof endpoint.p95_latency === 'string') {
+                    const latencyStr = endpoint.p95_latency.replace(/[^0-9.]/g, '');
+                    p95 = parseFloat(latencyStr) || 0;
+                } else {
+                    p95 = parseFloat(endpoint.p95_latency || 0);
+                }
+                
+                const latencySeconds = Math.round(p95 / 1000); // Convert to seconds and round
+                let toolName = endpoint.resource_name;
+                
+                // Clean up the tool name to match the format shown in the image
+                toolName = toolName.replace(/^(get|post|put|delete)_/, ''); // Remove HTTP method prefix
+                toolName = toolName.replace(/\//g, '/'); // Keep slashes
+                toolName = toolName.replace(/_/g, '_'); // Keep underscores
+                
+                slowTools.push({
+                    name: toolName,
+                    latency: latencySeconds.toLocaleString(), // Format like "21" for 21 seconds
+                    latencyMs: latencySeconds.toLocaleString() + ',000', // Format like "21,000" ms for display
+                    p95Latency: p95
+                });
+                
+                console.log('✅ Added MCP tool:', toolName, 'with', latencySeconds, 'sec latency');
+            });
+            
+            // Sort by latency (highest first) to match the dashboard view
+            slowTools.sort((a, b) => b.p95Latency - a.p95Latency);
+        }
+        
+        console.log('📊 MCP Tools analysis result:', slowTools.length, 'slow tools found');
+        
+        return {
+            slowTools: slowTools,
+            totalSlowTools: slowTools.length
+        };
+    }
+    */
+
     analyzeRestartCauses(podsWithRestarts, allData) {
         const analyses = [];
-        
+
         // Check for resource-related restart patterns
         for (const pod of podsWithRestarts) {
             const podName = pod.podName;
             const restartCount = pod.restarts;
-            
+
             // Memory-related restart analysis
             if (allData.podMetrics?.containerMetrics?.memory) {
                 const memMetrics = allData.podMetrics.containerMetrics.memory;
@@ -816,7 +946,7 @@ class ConfluenceReportGenerator {
                     continue;
                 }
             }
-            
+
             // CPU-related restart analysis
             if (allData.podMetrics?.containerMetrics?.cpu) {
                 const cpuMetrics = allData.podMetrics.containerMetrics.cpu;
@@ -826,14 +956,14 @@ class ConfluenceReportGenerator {
                     continue;
                 }
             }
-            
+
             // Error correlation analysis
             const hasHighErrors = allData.errorMetrics?.logSummary?.totalLogErrors > 0;
             if (hasHighErrors && restartCount > 1) {
                 analyses.push(`Restarts on ${podName} correlate with application errors (${allData.errorMetrics.logSummary.totalLogErrors} errors), likely application-level failures`);
                 continue;
             }
-            
+
             // Health check failure pattern
             if (restartCount >= 3) {
                 analyses.push(`Frequent restarts on ${podName} suggest health check failures or application instability`);
@@ -841,15 +971,15 @@ class ConfluenceReportGenerator {
                 analyses.push(`Single restart on ${podName} - monitor for patterns; may be related to deployment updates or transient issues`);
             }
         }
-        
+
         // Overall restart pattern analysis
         const totalRestarts = podsWithRestarts.reduce((sum, pod) => sum + pod.restarts, 0);
         const avgRestartsPerPod = totalRestarts / podsWithRestarts.length;
-        
+
         if (avgRestartsPerPod > 2) {
             analyses.push(`Average ${avgRestartsPerPod.toFixed(1)} restarts per pod indicates systematic issues requiring investigation`);
         }
-        
+
         return analyses.length > 0 ? analyses : [`Monitor for recurring patterns and correlate with deployment activities`];
     }
 
@@ -859,15 +989,15 @@ class ConfluenceReportGenerator {
         let overallStatus = 'good';
 
         // Generate clean metrics-based Key Findings based on actual service performance during monitoring window
-        
+
         // Check for pod restarts during monitoring window
         let hasRestarts = false;
         if (data.podMetrics && data.podMetrics.podMetrics) {
             const restartTiming = this.analyzeRestartTiming(data.podMetrics);
             const podsWithRestarts = data.podMetrics.podMetrics.filter(pod => {
                 const podTiming = restartTiming[pod.podName];
-                return pod.restarts && pod.restarts > 0 && 
-                       (podTiming && podTiming.duringWindow !== false);
+                return pod.restarts && pod.restarts > 0 &&
+                    (podTiming && podTiming.duringWindow !== false);
             });
             const totalRestarts = podsWithRestarts.reduce((sum, pod) => sum + (pod.restarts || 0), 0);
             if (totalRestarts > 0) {
@@ -876,7 +1006,7 @@ class ConfluenceReportGenerator {
                 overallStatus = totalRestarts >= 5 ? 'critical' : 'warning';
             }
         }
-        
+
         // High P95 Latency Analysis
         const highLatencyEndpoints = data.metrics.filter(m => {
             const p95 = parseFloat(m.p95_latency);
@@ -884,14 +1014,15 @@ class ConfluenceReportGenerator {
         });
 
         if (highLatencyEndpoints.length > 0) {
-            const worstEndpoint = highLatencyEndpoints.reduce((worst, current) => 
+            const worstEndpoint = highLatencyEndpoints.reduce((worst, current) =>
                 parseFloat(current.p95_latency) > parseFloat(worst.p95_latency) ? current : worst
             );
             const avgP95 = highLatencyEndpoints.reduce((sum, m) => sum + parseFloat(m.p95_latency), 0) / highLatencyEndpoints.length;
-            
-            // Show all high-latency endpoints, not just the worst one
-            const endpointNames = highLatencyEndpoints.map(ep => ep.resource_name).join(', ');
-            findings.push(`<strong>High P95 Latency Detected:</strong> ${highLatencyEndpoints.length} endpoint(s) with P95 > 1s (avg: ${(avgP95/1000).toFixed(1)}s). Endpoints: ${endpointNames}`);
+
+            // Show P95 latency for each endpoint instead of average
+            const p95Values = highLatencyEndpoints.map(ep => `${(parseFloat(ep.p95_latency) / 1000).toFixed(2)}s`).join(', ');
+            const endpointNames = highLatencyEndpoints.map(ep => `<span style="color: black; font-weight: bold;">${ep.resource_name}</span>`).join(', ');
+            findings.push(`<strong>High P95 Latency Detected:</strong> ${highLatencyEndpoints.length} endpoint(s) with P95 > 1s (p95: ${p95Values}). Endpoints: ${endpointNames}`);
             recommendations.push('Investigate slow endpoints for database query optimization, external API calls, or inefficient algorithms');
             overallStatus = 'warning';
         }
@@ -905,11 +1036,11 @@ class ConfluenceReportGenerator {
         if (errorEndpoints.length > 0) {
             const totalEndpointErrors = errorEndpoints.reduce((sum, m) => sum + parseInt(m.errors || 0), 0);
             findings.push(`<strong>Errors Found:</strong> ${totalEndpointErrors} total errors (${totalEndpointErrors} endpoint errors, 0 trace errors)`);
-            
+
             // Show most common error pattern
             const errorRateEndpoints = errorEndpoints.filter(m => parseFloat(m.error_rate || 0) > 0);
             if (errorRateEndpoints.length > 0) {
-                const worstErrorEndpoint = errorRateEndpoints.reduce((worst, current) => 
+                const worstErrorEndpoint = errorRateEndpoints.reduce((worst, current) =>
                     parseFloat(current.error_rate || 0) > parseFloat(worst.error_rate || 0) ? current : worst
                 );
                 findings.push(`<strong>Most Common Error:</strong> ${parseFloat(worstErrorEndpoint.error_rate).toFixed(2)}% error rate on ${worstErrorEndpoint.resource_name} endpoint`);
@@ -920,7 +1051,7 @@ class ConfluenceReportGenerator {
         // Application Log Errors
         if (data.errorMetrics && data.errorMetrics.logSummary && data.errorMetrics.logSummary.totalLogErrors > 0) {
             findings.push(`<strong>Application Errors:</strong> ${data.errorMetrics.logSummary.totalLogErrors} log errors detected during monitoring window`);
-            
+
             // Show most common log error
             const topLogMessage = data.errorMetrics.logSummary.topMessages?.[0];
             if (topLogMessage && topLogMessage.message !== "No message...") {
@@ -928,20 +1059,68 @@ class ConfluenceReportGenerator {
             }
             overallStatus = overallStatus === 'good' ? 'warning' : overallStatus;
         }
-        
+
         // Throughput Analysis
         if (data.metrics && data.metrics.length > 0) {
             const totalRequests = data.metrics.reduce((sum, m) => sum + parseInt(m.requests || 0), 0);
             if (totalRequests > 0) {
-                const timeRangeMinutes = data.timeRange ? 
+                const timeRangeMinutes = data.timeRange ?
                     (new Date(data.timeRange.to) - new Date(data.timeRange.from)) / (1000 * 60) : 30;
                 const avgRate = (totalRequests / timeRangeMinutes).toFixed(2);
                 findings.push(`<strong>Throughput:</strong> ${totalRequests} total requests over ${timeRangeMinutes.toFixed(0)} minutes (avg: ${avgRate} req/min)`);
             }
         }
 
+        // MCP Tools Latency Analysis (Only for operator-agent-service) - COMMENTED OUT
+        /*
+        console.log('🔍 Checking for MCP tools analysis. Service:', data.service);
+        if (data.service && data.service.includes('operator-agent-service')) {
+            console.log('✅ Running MCP tools analysis for operator-agent-service');
+            
+            // Use dedicated MCP tools data if available and contains slow tools (> 1s)
+            if (data.mcpToolsData && data.mcpToolsData.mcpTools && data.mcpToolsData.mcpTools.length > 0) {
+                console.log(`🔧 Using dedicated MCP tools data - found ${data.mcpToolsData.mcpTools.length} slow tools (> 1s)`);
+                const slowTools = data.mcpToolsData.mcpTools;
+                
+                // Get the highest latency endpoint for the header
+                const worstEndpoint = data.metrics && data.metrics.length > 0 ? 
+                    data.metrics.reduce((worst, current) => 
+                        parseFloat(current.p95_latency || 0) > parseFloat(worst.p95_latency || 0) ? current : worst
+                    ) : null;
+                
+                if (worstEndpoint) {
+                    const endpointLatency = (parseFloat(worstEndpoint.p95_latency)/1000).toFixed(2);
+                    
+                    // Build the complete MCP tools section as one finding
+                    let mcpToolsSection = `<strong>p95 latency of</strong> <span style="color: #0066CC;">${worstEndpoint.resource_name}</span> <strong>was recorded ${endpointLatency} sec</strong><br/>`;
+                    mcpToolsSection += `&nbsp;&nbsp;&nbsp;&nbsp;<strong>Observed the below tools were recorded > 1 sec</strong><br/>`;
+                    
+                    slowTools.forEach(tool => {
+                        const latencyMs = Math.round(tool.p95_latency_ms).toLocaleString();
+                        mcpToolsSection += `&nbsp;&nbsp;&nbsp;&nbsp;<strong>${latencyMs} ms</strong> - ${tool.tool_name}<br/>`;
+                    });
+                    
+                    findings.push(mcpToolsSection);
+                } else {
+                    findings.push(`<strong>MCP Tools Latency:</strong> ${slowTools.length} tool(s) recorded > 1 sec`);
+                }
+                
+                // Only add recommendation when slow tools are found
+                if (!recommendations.some(rec => rec.includes('Monitor MCP tool execution times'))) {
+                    recommendations.push('Monitor MCP tool execution times and optimize slow-performing tools for better user experience');
+                }
+                overallStatus = overallStatus === 'good' ? 'warning' : overallStatus;
+                console.log(`✅ Added MCP tools findings to report - ${slowTools.length} slow tools found`);
+            } else {
+                console.log('ℹ️ No slow MCP tools found (> 1s) - skipping MCP tools section');
+            }
+        } else {
+            console.log('ℹ️ Skipping MCP tools analysis - not operator-agent-service');
+        }
+        */
+
         // Continue with resource utilization analysis for recommendations
-        if (data.podMetrics && data.podMetrics.summary && 
+        if (data.podMetrics && data.podMetrics.summary &&
             data.podMetrics.summary.avgCpuPct !== undefined) {
             const avgCpu = data.podMetrics.summary.avgCpuPct;
             const maxCpu = data.podMetrics.summary.maxCpuPct;
@@ -967,15 +1146,15 @@ class ConfluenceReportGenerator {
             const podsWithRestarts = data.podMetrics.podMetrics.filter(pod => {
                 // Only count restarts that occurred during our monitoring window
                 const podTiming = restartTiming[pod.podName];
-                return pod.restarts && pod.restarts > 0 && 
-                       (podTiming && podTiming.duringWindow !== false);
+                return pod.restarts && pod.restarts > 0 &&
+                    (podTiming && podTiming.duringWindow !== false);
             });
-            
+
             const totalRestarts = podsWithRestarts.reduce((sum, pod) => sum + (pod.restarts || 0), 0);
-            
+
             if (totalRestarts > 0) {
                 findings.push(`<strong style="color: #DE350B;">Pod Restarts Detected:</strong> ${totalRestarts} restart(s) during monitoring window across ${podsWithRestarts.length} pod(s)`);
-                
+
                 // Add restart details with exact timestamps and analysis
                 for (const pod of podsWithRestarts) {
                     const timing = restartTiming[pod.podName];
@@ -985,13 +1164,13 @@ class ConfluenceReportGenerator {
                         findings.push(`&nbsp;&nbsp;• ${pod.podName} - ${pod.restarts} restart${pod.restarts > 1 ? 's' : ''} during monitoring period`);
                     }
                 }
-                
+
                 // Add single consolidated analysis
                 const mainCause = this.getMainRestartCause(podsWithRestarts, data);
                 if (mainCause) {
                     findings.push(`&nbsp;&nbsp;• ${mainCause}`);
                 }
-                
+
                 // Add restart-specific recommendations
                 if (data.errorMetrics?.logSummary?.totalLogErrors > 0) {
                     recommendations.push('<strong>Application errors causing restarts:</strong> Review application logs and implement proper error handling');
@@ -999,7 +1178,7 @@ class ConfluenceReportGenerator {
                 if (podsWithRestarts.some(pod => pod.restarts >= 3)) {
                     recommendations.push('<strong>Frequent restarts detected:</strong> Check health check configurations and resource limits');
                 }
-                
+
                 // Set overall status based on restart severity
                 if (totalRestarts >= 5) {
                     overallStatus = 'critical';
@@ -1043,7 +1222,7 @@ class ConfluenceReportGenerator {
         content += 'The analysis focuses on detecting performance regressions against established baselines, uncovering potential bottlenecks, and identifying optimization opportunities in scaling and resource allocation. ';
         content += 'The goal is to ensure predictable autoscaling behavior and maintain consistent, reliable performance at peak demand levels.</p>';
         content += '</div>';
-        
+
         return content;
     }
 
@@ -1052,70 +1231,70 @@ class ConfluenceReportGenerator {
         const fromTime = new Date(data.timeRange.from);
         const toTime = new Date(data.timeRange.to);
         const durationMinutes = Math.round((toTime - fromTime) / 60000);
-        
+
         // Extract unique scripts/endpoints from the data
         const scriptsIncluded = data.metrics.map(metric => {
             // Keep original format with underscores
             return metric.resource_name;
         }).join(', ');
-        
+
         let content = '<h2 style="' + this.getFontStyles().headerFont + ' color: #172B4D; border-bottom: 3px solid #0052CC; padding-bottom: 8px; margin-top: 25px; font-weight: bold;"><span style="background-color: #0052CC; color: white; padding: 4px 12px; border-radius: 3px;">📈 Test Scope & Design:</span></h2>';
         content += '<table data-table-width="1200" data-layout="wide">';
         content += '<colgroup><col width="200"/><col width="1000"/></colgroup>';
         content += '<tbody>';
-        
+
         // Test Environment
         content += '<tr>';
         content += '<td style="padding: 8px 12px;"><p style="' + this.getFontStyles().emphasisFont + ' margin: 4px 0;"><strong>Test Environment</strong></p></td>';
         content += '<td style="padding: 8px 12px;"><p style="' + this.getFontStyles().bodyFont + ' margin: 4px 0;">' + (data.environment.charAt(0).toUpperCase() + data.environment.slice(1)) + '</p></td>';
         content += '</tr>';
-        
+
         // Test Execution time
         content += '<tr>';
         content += '<td style="padding: 8px 12px;"><p style="' + this.getFontStyles().emphasisFont + ' margin: 4px 0;"><strong>Test Execution time</strong></p></td>';
-        content += '<td style="padding: 8px 12px;"><p style="' + this.getFontStyles().bodyFont + ' margin: 4px 0;">' + fromTime.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric', 
-            hour: 'numeric', 
+        content += '<td style="padding: 8px 12px;"><p style="' + this.getFontStyles().bodyFont + ' margin: 4px 0;">' + fromTime.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
             minute: '2-digit',
-            hour12: true 
-        }) + ' – ' + toTime.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric', 
-            hour: 'numeric', 
+            hour12: true
+        }) + ' – ' + toTime.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
             minute: '2-digit',
-            hour12: true 
+            hour12: true
         }) + '</p></td>';
         content += '</tr>';
-        
+
         // Test type
         content += '<tr>';
         content += '<td style="padding: 8px 12px;"><p style="' + this.getFontStyles().emphasisFont + ' margin: 4px 0;"><strong>Test type</strong></p></td>';
         content += '<td style="padding: 8px 12px;"><p style="' + this.getFontStyles().bodyFont + ' margin: 4px 0;">Stress Test</p></td>';
         content += '</tr>';
-        
+
         // Duration
         content += '<tr>';
         content += '<td style="padding: 8px 12px;"><p style="' + this.getFontStyles().emphasisFont + ' margin: 4px 0;"><strong>Duration</strong></p></td>';
         content += '<td style="padding: 8px 12px;"><p style="' + this.getFontStyles().bodyFont + ' margin: 4px 0;">' + durationMinutes + ' minutes</p></td>';
         content += '</tr>';
-        
+
         // Design - static load pattern from environment
         content += '<tr>';
         content += '<td style="vertical-align: top; padding: 8px 12px;"><p style="' + this.getFontStyles().emphasisFont + '"><strong>Design</strong></p></td>';
         content += '<td style="padding: 8px 12px;"><div style="line-height: 1.4;"><p style="' + this.getFontStyles().bodyFont + ' margin: 0;">';
-        
+
         // Use single load pattern variable from environment
         const loadPattern = process.env.LOAD_PATTERN || 'To simulate the throughput in Five steps, starts with 1 req/sec for 6 mins then increased to 2 req/sec for the next 6 mins, and finally reaching to 5 req/sec for last 6 mins.';
-        
+
         // Highlight any text containing "req/sec" with colored styling
         const highlightedPattern = loadPattern.replace(/(\d+(?:\.\d+)?\s+req\/sec)/g, '<span style="color: #FF5630; font-weight: bold; background-color: #FFEBE6; padding: 2px 6px; border-radius: 3px;">$1</span>');
-        
+
         content += highlightedPattern + '</p></div></td>';
         content += '</tr>';
-        
+
         content += '</tbody></table>';
-        
+
         return content;
     }
 
@@ -1123,7 +1302,7 @@ class ConfluenceReportGenerator {
         // Try to load container metrics if available
         const containerMetricsPath = `./reports/${data.service}_container_metrics.json`;
         let containerData = null;
-        
+
         try {
             if (fs.existsSync(containerMetricsPath)) {
                 containerData = JSON.parse(fs.readFileSync(containerMetricsPath, 'utf8'));
@@ -1132,13 +1311,13 @@ class ConfluenceReportGenerator {
             // Container metrics not available, skip section
             return '';
         }
-        
+
         if (!containerData || !containerData.podMetrics) {
             return '';
         }
-        
+
         let content = '<h2 style="' + this.getFontStyles().headerFont + ' color: #172B4D; border-bottom: 3px solid #0052CC; padding-bottom: 8px; margin-top: 30px; font-weight: bold;"><span style="background-color: #0052CC; color: white; padding: 4px 12px; border-radius: 3px;">🔧 Kubernetes Pod Metrics</span></h2>';
-        
+
         // Pod summary badges
         content += '<div style="background-color: #F4F5F7; padding: 15px 20px; margin: 15px 0; border-radius: 3px;">';
         content += '<table style="width: 100%; border: none;"><tbody><tr>';
@@ -1155,29 +1334,29 @@ class ConfluenceReportGenerator {
         const restartTiming = this.analyzeRestartTiming(containerData);
         const windowRestarts = containerData.podMetrics.filter(pod => {
             const podTiming = restartTiming[pod.podName];
-            return pod.restarts && pod.restarts > 0 && 
-                   (podTiming && podTiming.duringWindow !== false);
+            return pod.restarts && pod.restarts > 0 &&
+                (podTiming && podTiming.duringWindow !== false);
         }).reduce((sum, pod) => sum + (pod.restarts || 0), 0);
-        
+
         const restartColor = windowRestarts === 0 ? '#00875A' : '#FF5630';
         content += `<span style="background-color: ${restartColor}; color: white; padding: 8px 16px; border-radius: 3px; font-weight: 600; font-size: 16px; display: inline-block;">`;
         content += `🔄 ${windowRestarts} Restarts</span>`;
         content += '</td>';
         content += '</tr></tbody></table>';
         content += '</div>';
-        
+
         // Pod details table - filter out cronjob pods with zero metrics
         const activePods = containerData.podMetrics.filter(pod => {
             // Exclude cronjob pods or pods with all zero metrics
             const isCronJob = pod.podName.includes('cronjob');
-            const hasZeroMetrics = (!pod.avgCpuPct || pod.avgCpuPct === 0) && 
-                                 (!pod.maxCpuPct || pod.maxCpuPct === 0) &&
-                                 (!pod.avgMemoryPct || pod.avgMemoryPct === 0) &&
-                                 (!pod.maxMemoryPct || pod.maxMemoryPct === 0);
-            
+            const hasZeroMetrics = (!pod.avgCpuPct || pod.avgCpuPct === 0) &&
+                (!pod.maxCpuPct || pod.maxCpuPct === 0) &&
+                (!pod.avgMemoryPct || pod.avgMemoryPct === 0) &&
+                (!pod.maxMemoryPct || pod.maxMemoryPct === 0);
+
             return !isCronJob && !hasZeroMetrics;
         });
-        
+
         if (activePods.length > 0) {
             content += '<h3 style="' + this.getFontStyles().headerFont + ' margin-top: 25px; font-weight: bold;">Pod Resource Usage</h3>';
             content += '<table data-table-width="1200">';
@@ -1190,7 +1369,7 @@ class ConfluenceReportGenerator {
             content += '<th><p style="' + this.getFontStyles().tableFont + ' font-weight: 600;"><strong>AVG MEMORY (%)</strong></p></th>';
             content += '<th><p style="' + this.getFontStyles().tableFont + ' font-weight: 600;"><strong>MAX MEMORY (%)</strong></p></th>';
             content += '</tr>';
-            
+
             activePods.forEach(pod => {
                 content += '<tr>';
                 content += `<td><p style="${this.getFontStyles().tableFont}"><code>${pod.podName}</code></p></td>`;
@@ -1200,12 +1379,12 @@ class ConfluenceReportGenerator {
                 content += `<td><p style="${this.getFontStyles().tableFont}">${pod.maxMemoryPct ? pod.maxMemoryPct.toFixed(2) : '0.00'}</p></td>`;
                 content += '</tr>';
             });
-            
+
             content += '</tbody></table>';
         } else {
             content += '<p style="' + this.getFontStyles().bodyFont + ' margin-top: 20px;">No active service pods found with resource metrics to display.</p>';
         }
-        
+
         return content;
     }
 
@@ -1236,7 +1415,7 @@ class ConfluenceReportGenerator {
 
     generateRegressionReport(data) {
         let content = '<h2>Performance Regression Analysis</h2>';
-        
+
         content += '<ac:structured-macro ac:name="panel" ac:schema-version="1">';
         content += '<ac:parameter ac:name="borderStyle">dashed</ac:parameter>';
         content += '<ac:parameter ac:name="borderColor">#ccc</ac:parameter>';
@@ -1323,11 +1502,11 @@ ${content}
         try {
             const space = spaceKey || this.confluenceConfig.spaceKey;
             const srpFolderId = '2485485885';
-            
+
             // Check if a page with the same title already exists
             console.log(`🔍 Checking if page exists: ${title}`);
             const existingPage = await this.findPage(title, space);
-            
+
             if (existingPage) {
                 // Update existing page
                 console.log(`📝 Updating existing page: ${title} (ID: ${existingPage.id}, Version: ${existingPage.version.number})`);
@@ -1389,22 +1568,22 @@ ${content}
                     expand: 'version'
                 }
             });
-            
+
             if (response.data.results.length > 0) {
                 return response.data.results[0];
             }
-            
+
             // If not found, create the SRP-Performance-Reports folder
             console.log(`📁 SRP-Performance-Reports folder not found, creating it...`);
             const folderPage = await this.createParentFolder(folderTitle, spaceKey);
             return folderPage;
-            
+
         } catch (error) {
             console.warn(`⚠️ Could not find or create parent folder '${folderTitle}':`, error.message);
             return null;
         }
     }
-    
+
     async createParentFolder(folderTitle, spaceKey) {
         try {
             const pageData = {
@@ -1433,7 +1612,7 @@ ${content}
     async createPage(title, content, spaceKey) {
         // Use the specific SRP-Performance-Reports folder with known ID
         const srpFolderId = '2485485885';
-        
+
         const pageData = {
             type: 'page',
             title: title,
@@ -1445,7 +1624,7 @@ ${content}
                 }
             }
         };
-        
+
         // Set the specific parent folder
         pageData.ancestors = [{ id: srpFolderId }];
         console.log(`📁 Creating page under SRP-Performance-Reports folder (ID: ${srpFolderId})`);
@@ -1472,26 +1651,26 @@ ${content}
         const response = await this.confluenceApi.put(`/content/${pageId}`, pageData);
         return response.data;
     }
-    
+
     async uploadAttachment(pageTitle, filePath, comment = '') {
         try {
             const fs = await import('fs');
             const FormData = (await import('form-data')).default;
-            
+
             // Find the page first
             const page = await this.findPage(pageTitle, this.confluenceConfig.spaceKey);
             if (!page) {
                 throw new Error(`Page not found: ${pageTitle}`);
             }
-            
+
             const pageId = page.id;
             const fileName = filePath.split('/').pop();
-            
+
             // Check if attachment already exists
             const existingAttachments = await this.confluenceApi.get(`/content/${pageId}/child/attachment`, {
                 params: { filename: fileName }
             });
-            
+
             const form = new FormData();
             form.append('file', fs.default.createReadStream(filePath), {
                 filename: fileName,
@@ -1500,12 +1679,12 @@ ${content}
             if (comment) {
                 form.append('comment', comment);
             }
-            
+
             if (existingAttachments.data.results.length > 0) {
                 // Update existing attachment
                 const attachmentId = existingAttachments.data.results[0].id;
                 form.append('minorEdit', 'true');
-                
+
                 await this.confluenceApi.post(
                     `/content/${pageId}/child/attachment/${attachmentId}/data`,
                     form,
@@ -1529,7 +1708,7 @@ ${content}
                     }
                 );
             }
-            
+
             return true;
         } catch (error) {
             console.error('❌ Failed to upload attachment:', error.message);
@@ -1638,6 +1817,19 @@ async function main() {
     console.log(`📊 Loading metrics data from: ${options.input}`);
     const data = JSON.parse(fs.readFileSync(options.input, 'utf8'));
 
+    // Load MCP tools data if available (for operator-agent-service) - COMMENTED OUT
+    /*
+    if (data.service && data.service.includes('operator-agent-service')) {
+        const mcpToolsFile = options.input.replace('_endpoint_metrics_table.json', '_mcp_tools.json');
+        if (fs.existsSync(mcpToolsFile)) {
+            console.log(`🔧 Loading MCP tools data from: ${mcpToolsFile}`);
+            const mcpToolsData = JSON.parse(fs.readFileSync(mcpToolsFile, 'utf8'));
+            data.mcpToolsData = mcpToolsData;
+            console.log(`✅ Loaded ${mcpToolsData.mcpTools.length} MCP tools`);
+        }
+    }
+    */
+
     const generator = new ConfluenceReportGenerator();
 
     // Generate report content
@@ -1648,7 +1840,7 @@ async function main() {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const filename = `performance-report-${timestamp}.html`;
     const outputPath = path.join(options.output, filename);
-    
+
     await generator.saveReport(content, outputPath, 'html');
 
     // Upload to Confluence if requested

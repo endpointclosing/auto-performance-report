@@ -7,7 +7,7 @@ Complete end-to-end automated system that fetches Datadog performance metrics, g
 
 ### Complete Automation
 ```bash
-node auto-report.js --from 'Feb 3, 12:33 am' --to 'Feb 3, 12:36 am' --service 'stardust-activity-log-service'
+node index.js auto-report --from 'Feb 3, 12:33 am' --to 'Feb 3, 12:36 am' --service 'stardust-activity-log-service'
 ```
 
 **What it does automatically:**
@@ -106,7 +106,7 @@ LOAD_PATTERN=To simulate the throughput in Five steps, starts with 1 req/sec for
 
 ### 🎯 Complete Automation (Recommended)
 ```bash
-node auto-report.js --from 'Jan 14, 1:51 pm' --to 'Jan 14, 2:21 pm' --service 'stardust-communication-service'
+node index.js auto-report --from 'Jan 14, 1:51 pm' --to 'Jan 14, 2:21 pm' --service 'stardust-communication-service'
 ```
 
 **Parameters:**
@@ -124,17 +124,17 @@ node auto-report.js --from 'Jan 14, 1:51 pm' --to 'Jan 14, 2:21 pm' --service 's
 
 #### 1. Fetch Metrics Only
 ```bash
-node fetchdatadogmetrics.js --from 'Jan 3, 2:37 pm' --to 'Jan 3, 3:09 pm' --service 'stardust-activity-log-service'
+node index.js fetch-metrics --from 'Jan 3, 2:37 pm' --to 'Jan 3, 3:09 pm' --service 'stardust-activity-log-service'
 ```
 
 #### 2. Upload to Confluence Only
 ```bash
-node confluence-uploader.js
+node index.js upload-confluence
 ```
 
-#### 3. Deploy to GitHub Pages Only  
+#### 3. Generate Interactive Report Only
 ```bash
-node deploy-to-main.js
+node index.js generate-html
 ```
 
 **Individual Step Outputs:**
@@ -193,22 +193,26 @@ Expandable sections for each endpoint:
 
 ```
 Auto Performance Report Framework/
-├── � Automation Layer
-│   ├── auto-report.js                  # Complete automation orchestrator
-│   └── deploy-to-main.js               # GitHub Pages deployment
+├── 📱 Main Entry Point
+│   └── index.js                       # CLI router and command dispatcher
 │
-├── 📊 Data Collection Layer
-│   ├── fetchdatadogmetrics.js          # Main orchestrator  
-│   ├── fetch-container-metrics.js      # Kubernetes metrics
-│   └── fetch-error-metrics.js          # Error analysis
-│
-├── 🔄 Processing & Analysis Engine  
-│   └── src/scripts/
-│       └── confluenceReportGenerator.js # Report generation core
-│
-├── 📤 Output & Integration Layer
-│   ├── confluence-uploader.js          # Confluence API + dual buttons
-│   └── generate-full-interactive-report.js # Interactive HTML + service-specific naming
+├── 📁 src/                            # Organized source code
+│   ├── 🚀 core/                       # Main automation logic
+│   │   └── auto-report.js            # Complete workflow orchestrator
+│   │
+│   ├── 📊 fetchers/                   # Data collection modules
+│   │   ├── fetchdatadogmetrics.js    # Main Datadog API orchestrator
+│   │   ├── fetch-container-metrics.js # Kubernetes pod/container metrics
+│   │   └── fetch-error-metrics.js    # Error analysis and OOM detection
+│   │
+│   ├── 📤 generators/                 # Report generation
+│   │   ├── confluence-uploader.js    # Confluence API + dual buttons
+│   │   └── generate-full-interactive-report.js # Interactive HTML generator
+│   │
+│   ├── 🔄 scripts/                    # Core processing engines
+│   │   └── confluenceReportGenerator.js # Report analysis and formatting
+│   │
+│   └── 🛠️ utils/                      # Helper utilities (future expansion)
 │
 ├── 🌐 GitHub Pages Hosting
 │   └── html-reports/                   # Auto-deployed interactive reports
@@ -234,7 +238,8 @@ Auto Performance Report Framework/
 
 ```mermaid
 flowchart TD
-    A[User Command: auto-report.js] --> B[fetchdatadogmetrics.js]
+    A[User Command: index.js auto-report] --> B[src/core/auto-report.js]
+    B --> C[src/fetchers/fetchdatadogmetrics.js]
     B --> C[Datadog API]
     B --> D[Kubernetes Metrics]  
     B --> E[Error Logs]
@@ -342,7 +347,7 @@ Share professional reports with management and teams
 # Step 1: Run your load test (external tool like JMeter, K6, etc.)
 
 # Step 2: Generate complete report automatically
-node auto-report.js --from 'Jan 13, 1:25 pm' --to 'Jan 13, 1:56 pm' --service 'stardust-closing-requirements-service'
+node index.js auto-report --from 'Jan 13, 1:25 pm' --to 'Jan 13, 1:56 pm' --service 'stardust-closing-requirements-service'
 
 # Done! Check both:
 # 📋 Confluence: Updated page with download + browser view buttons  

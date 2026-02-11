@@ -57,25 +57,25 @@ function runCommand(command, description) {
 async function runAutomation() {
     console.log('🎯 AUTOMATED REPORT GENERATION');
     console.log('='.repeat(70));
-    
+
     // Step 1: Fetch Datadog metrics
-    const step1 = `node fetchdatadogmetrics.js --from "${fromTime}" --to "${toTime}" --service "${serviceName}"`;
+    const step1 = `node src/fetchers/fetchdatadogmetrics.js --from "${fromTime}" --to "${toTime}" --service "${serviceName}"`;
     if (!runCommand(step1, '1️⃣  FETCHING DATADOG METRICS')) {
         process.exit(1);
     }
-    
+
     // Step 2: Generate HTML report and upload to Confluence
-    const step2 = `node confluence-uploader.js`;
+    const step2 = `node src/generators/confluence-uploader.js`;
     if (!runCommand(step2, '2️⃣  GENERATING HTML REPORT & UPLOADING TO CONFLUENCE')) {
         process.exit(1);
     }
-    
+
     // Step 3: Deploy to GitHub main branch
-    const step3 = `node deploy-to-main.js`;
+    const step3 = `node src/utils/deploy-to-main.js`;
     if (!runCommand(step3, '3️⃣  DEPLOYING TO GITHUB MAIN BRANCH')) {
         process.exit(1);
     }
-    
+
     console.log('\n' + '='.repeat(70));
     console.log('🎉 AUTOMATION COMPLETE!');
     console.log('='.repeat(70));

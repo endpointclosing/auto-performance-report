@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import dotenv from 'dotenv';
-import ConfluenceReportGenerator from './src/scripts/confluenceReportGenerator.js';
+import ConfluenceReportGenerator from '../scripts/confluenceReportGenerator.js';
 
 // Load environment variables
 dotenv.config();
@@ -12,22 +12,22 @@ dotenv.config();
  */
 function getDashboardUrl(serviceName, timeRange = null) {
     let baseUrl;
-    
+
     if (serviceName === 'operator-agent-service' || serviceName === 'order-service') {
         baseUrl = `https://endpointclosing.datadoghq.com/dashboard/6w9-8tv-qj4?fromUser=false&graphType=service_map&historicalData=true&index=&refresh_mode=paused&shouldShowLegend=true&spanViewType=errors&tpl_var_apm-service%5B0%5D=${serviceName}&tpl_var_env%5B0%5D=staging&tpl_var_service%5B0%5D=${serviceName}&traceQuery=`;
     } else {
         baseUrl = `https://endpointclosing.datadoghq.com/dashboard/9tc-enb-57g?fromUser=false&graphType=service_map&historicalData=true&index=&refresh_mode=paused&shouldShowLegend=true&spanViewType=errors&tpl_var_apm-service%5B0%5D=${serviceName}&tpl_var_env%5B0%5D=staging&tpl_var_service%5B0%5D=${serviceName}&traceQuery=`;
     }
-    
+
     // Add time range parameters if provided
     if (timeRange && timeRange.from && timeRange.to) {
         const fromTs = new Date(timeRange.from).getTime();
         const toTs = new Date(timeRange.to).getTime();
-        
+
         // Add time range parameters to URL
         return `${baseUrl}&from_ts=${fromTs}&to_ts=${toTs}&live=false`;
     }
-    
+
     return baseUrl;
 }
 
@@ -91,8 +91,26 @@ async function uploadReport() {
         if (!fs.existsSync(inputFile)) {
             throw new Error(`Input file not found: ${inputFile}`);
         }
-        
+
         const data = JSON.parse(fs.readFileSync(inputFile, 'utf8'));
+
+        // Load MCP tools data if available (for operator-agent-service)
+        let mcpToolsData = null;
+        if (data.service === 'operator-agent-service') {
+            const mcpToolsFile = `./reports/${data.service}_mcp_tools.json`;
+            if (fs.existsSync(mcpToolsFile)) {
+                console.log('🔧 Loading MCP tools data...');
+                mcpToolsData = JSON.parse(fs.readFileSync(mcpToolsFile, 'utf8'));
+                console.log(`✅ Loaded MCP tools data: ${mcpToolsData.totalSlowTools} slow tools found`);
+            } else {
+                console.log('ℹ️ No MCP tools data found');
+            }
+        }
+
+        // Add MCP tools data to main data object
+        if (mcpToolsData) {
+            data.mcpToolsData = mcpToolsData;
+        }
 
         // Add load pattern configuration from environment variables
         data.loadPattern = {
@@ -135,18 +153,18 @@ async function uploadReport() {
                 .split('-')
                 .map(word => word.charAt(0).toUpperCase() + word.slice(1))
                 .join(' ');
-            
+
             // Add date and time suffix to ensure uniqueness - each report preserved separately
             const testDateTime = new Date(data.timeRange.from);
-            const dateString = testDateTime.toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric', 
-                year: 'numeric' 
+            const dateString = testDateTime.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
             });
-            const timeString = testDateTime.toLocaleTimeString('en-US', { 
-                hour: 'numeric', 
+            const timeString = testDateTime.toLocaleTimeString('en-US', {
+                hour: 'numeric',
                 minute: '2-digit',
-                hour12: true 
+                hour12: true
             });
             customTitle = `${serviceName} Performance Report - ${dateString} ${timeString}`;
         }
@@ -169,21 +187,21 @@ async function uploadReport() {
         // Upload to Confluence
         console.log('🌐 Uploading to Confluence...');
         await generator.uploadToConfluence(content, customTitle);
-        
+
         // Generate and upload interactive HTML report as attachment
         console.log('📎 Generating interactive HTML report...');
         try {
-            execSync('node generate-full-interactive-report.js', { stdio: 'inherit' });
+            execSync('node src/generators/generate-full-interactive-report.js', { stdio: 'inherit' });
         } catch (error) {
             console.warn('⚠️  Could not generate interactive HTML report');
         }
-        
+
         // Create a copy of the service-specific report as "complete-interactive-report.html" for download
         const serviceName = data.service || 'report';
         const timestamp = new Date().toISOString().split('T')[0];
         const serviceSpecificPath = `./html-reports/${serviceName}-report-${timestamp}.html`;
         const genericPath = './complete-interactive-report.html';
-        
+
         if (fs.existsSync(serviceSpecificPath)) {
             // Copy service-specific file to generic name for Confluence download
             fs.copyFileSync(serviceSpecificPath, genericPath);

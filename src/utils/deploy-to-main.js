@@ -26,39 +26,39 @@ async function deploy() {
         console.log('💡 Run: node generate-full-interactive-report.js first\n');
         process.exit(1);
     }
-    
+
     const reportFiles = fs.readdirSync('./html-reports').filter(f => f.endsWith('.html'));
     if (reportFiles.length === 0) {
         console.error('❌ No HTML reports found in html-reports folder!');
         console.log('💡 Run: node generate-full-interactive-report.js first\n');
         process.exit(1);
     }
-    
+
     console.log(`📊 Found ${reportFiles.length} report(s) to deploy:`);
     reportFiles.forEach(file => console.log(`   • ${file}`));
     console.log('\n');
-    
+
     // Add html-reports folder to git
     console.log('💾 Adding html-reports to main branch...\n');
     runCommand('git add -f html-reports/', 'Adding html-reports folder');
-    
+
     const date = new Date().toISOString().split('T')[0];
     const commitMessage = `Update service reports - ${date}`;
-    
+
     if (!runCommand(`git commit -m "${commitMessage}"`, 'Commit changes')) {
         console.log('⚠️  No changes to commit (reports may be up to date)\n');
     }
-    
+
     // Push to main branch
     console.log('🚀 Pushing to main branch...\n');
     if (!runCommand('git push origin main', 'Push to GitHub')) {
         process.exit(1);
     }
-    
+
     // Show URLs
     const githubBaseUrl = process.env.GITHUB_PAGES_BASE_URL || 'https://stunning-barnacle-wre1op1.pages.github.io';
     const baseUrl = `${githubBaseUrl}/html-reports/`;
-    
+
     console.log('\n' + '='.repeat(70));
     console.log('✅ DEPLOYMENT SUCCESSFUL!');
     console.log('='.repeat(70));
