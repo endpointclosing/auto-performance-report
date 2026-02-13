@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>operator-agent-service - Interactive Performance Report</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f6f7;
+            padding: 20px;
+            color: #172B4D;
+        }
+        .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px 8px 0 0;
+        }
+        .header h1 { font-size: 28px; margin-bottom: 10px; }
+        .header p { opacity: 0.9; font-size: 14px; }
+        .content { padding: 30px; }
+        .section { margin-bottom: 40px; }
+        .section h2 { 
+            font-size: 20px; 
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #E8E8E8;
+            color: #172B4D;
+        }
+        .chart-container { 
+            position: relative; 
+            height: 400px;
+            margin-bottom: 30px;
+            background: #fafbfc;
+            padding: 20px;
+            border-radius: 6px;
+            border: 1px solid #e8e8e8;
+        }
+        .endpoint-section {
+            margin-bottom: 30px;
+            border: 1px solid #e8e8e8;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .endpoint-header {
+            background: #f4f5f7;
+            padding: 15px 20px;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        .endpoint-header:hover { background: #ebecf0; }
+        .endpoint-header h3 { font-size: 16px; color: #172B4D; }
+        .endpoint-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+            color: #5E6C84;
+        }
+        .endpoint-stats span { font-weight: 600; color: #172B4D; }
+        .endpoint-content {
+            padding: 20px;
+            display: none;
+        }
+        .endpoint-content.active { display: block; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: #f4f5f7;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 3px solid #0052CC;
+        }
+        .stat-card label { 
+            display: block;
+            font-size: 12px;
+            color: #5E6C84;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-card value { 
+            display: block;
+            font-size: 20px;
+            font-weight: 600;
+            color: #172B4D;
+        }
+        .chart-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .chart-box {
+            position: relative;
+            height: 300px;
+            background: #fafbfc;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e8e8e8;
+        }
+        .chart-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #172B4D;
+            margin-bottom: 10px;
+        }
+        .toggle-icon {
+            font-size: 20px;
+            transition: transform 0.3s;
+        }
+        .toggle-icon.active { transform: rotate(180deg); }
+        @media (max-width: 768px) {
+            .chart-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 operator-agent-service - Performance Report</h1>
+            <p>📅 Feb 9, 11:18 am – Feb 9, 12:19 pm</p>
+            <p>🌐 Environment: Staging</p>
+        </div>
+        
+        <div class="content">
+            <!-- Combined Timeline Chart Section -->
+            <div class="section">
+                <h2>📈 Performance Timeline</h2>
+                <p style="color: #5E6C84; margin-bottom: 20px; font-size: 14px;">
+                    Request rate and response time trends over time.
+                </p>
+                <div class="chart-container">
+                    <canvas id="combinedChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Individual Endpoints -->
+            <div class="section">
+                <h2>📈 Individual Endpoint Analysis</h2>
+                <p style="color: #5E6C84; margin-bottom: 20px; font-size: 14px;">
+                    Click on any endpoint to expand and view interactive Rate and P95 time series charts
+                </p>
+
+                <div class="endpoint-section">
+                    <div class="endpoint-header" onclick="toggleEndpoint(0)">
+                        <div>
+                            <h3>1. post /v1/threads/ threadid :retry</h3>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 30px;">
+                            <div class="endpoint-stats">
+                                <div>Rate: <span>0.06 req/s</span></div>
+                                <div>P95: <span>147.7 ms</span></div>
+                                <div>Requests: <span>208</span></div>
+                            </div>
+                            <span class="toggle-icon" id="toggle-0">▼</span>
+                        </div>
+                    </div>
+                    <div class="endpoint-content" id="content-0">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <label>Request Rate</label>
+                                <value>0.06 hits/s</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>Total Requests</label>
+                                <value>208</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P95 Latency</label>
+                                <value>147.7 ms</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P99 Latency</label>
+                                <value>216.0 ms</value>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-row">
+                            <div class="chart-box">
+                                <div class="chart-title">📊 Request Rate Over Time</div>
+                                <canvas id="rateChart-0"></canvas>
+                            </div>
+                            <div class="chart-box">
+                                <div class="chart-title">📈 P95 Latency Over Time</div>
+                                <canvas id="p95Chart-0"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    
+                <div class="endpoint-section">
+                    <div class="endpoint-header" onclick="toggleEndpoint(1)">
+                        <div>
+                            <h3>2. get /v1/threads</h3>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 30px;">
+                            <div class="endpoint-stats">
+                                <div>Rate: <span>0.15 req/s</span></div>
+                                <div>P95: <span>335.3 ms</span></div>
+                                <div>Requests: <span>531</span></div>
+                            </div>
+                            <span class="toggle-icon" id="toggle-1">▼</span>
+                        </div>
+                    </div>
+                    <div class="endpoint-content" id="content-1">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <label>Request Rate</label>
+                                <value>0.15 hits/s</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>Total Requests</label>
+                                <value>531</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P95 Latency</label>
+                                <value>335.3 ms</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P99 Latency</label>
+                                <value>702.8 ms</value>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-row">
+                            <div class="chart-box">
+                                <div class="chart-title">📊 Request Rate Over Time</div>
+                                <canvas id="rateChart-1"></canvas>
+                            </div>
+                            <div class="chart-box">
+                                <div class="chart-title">📈 P95 Latency Over Time</div>
+                                <canvas id="p95Chart-1"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    
+                <div class="endpoint-section">
+                    <div class="endpoint-header" onclick="toggleEndpoint(2)">
+                        <div>
+                            <h3>3. post /v1/threads/ threadid :chat</h3>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 30px;">
+                            <div class="endpoint-stats">
+                                <div>Rate: <span>0.03 req/s</span></div>
+                                <div>P95: <span>65858.9 ms</span></div>
+                                <div>Requests: <span>121</span></div>
+                            </div>
+                            <span class="toggle-icon" id="toggle-2">▼</span>
+                        </div>
+                    </div>
+                    <div class="endpoint-content" id="content-2">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <label>Request Rate</label>
+                                <value>0.03 hits/s</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>Total Requests</label>
+                                <value>121</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P95 Latency</label>
+                                <value>65858.9 ms</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P99 Latency</label>
+                                <value>98251.2 ms</value>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-row">
+                            <div class="chart-box">
+                                <div class="chart-title">📊 Request Rate Over Time</div>
+                                <canvas id="rateChart-2"></canvas>
+                            </div>
+                            <div class="chart-box">
+                                <div class="chart-title">📈 P95 Latency Over Time</div>
+                                <canvas id="p95Chart-2"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Toggle endpoint sections
+        function toggleEndpoint(index) {
+            const content = document.getElementById('content-' + index);
+            const icon = document.getElementById('toggle-' + index);
+            
+            if (content.classList.contains('active')) {
+                content.classList.remove('active');
+                icon.classList.remove('active');
+            } else {
+                content.classList.add('active');
+                icon.classList.add('active');
+                
+                // Initialize charts when opened for the first time
+                if (!content.dataset.initialized) {
+                    initializeEndpointCharts(index);
+                    content.dataset.initialized = 'true';
+                }
+            }
+        }
+        
+        const colors = ["#632CA6","#F84D8C","#19A974","#E8871E","#3D4EB8","#C93854","#137CBD","#00BF87","#DB3737","#8F398F"];
+        
+        // Use REAL time series data from JSON file
+        const startTime = new Date('2026-02-09T11:18:00');
+        const endTime = new Date('2026-02-09T12:19:00');
+        
+        // Load actual time series data from JSON
+        const timeSeriesData = {"post_/v1/threads/_threadid_:retry":[{"timestamp":1770616200000,"value":169.9},{"timestamp":1770616560000,"value":82.7},{"timestamp":1770616580000,"value":69.1},{"timestamp":1770616600000,"value":70.6},{"timestamp":1770616620000,"value":71.9},{"timestamp":1770616640000,"value":77.9},{"timestamp":1770616660000,"value":129.2},{"timestamp":1770616680000,"value":69.1},{"timestamp":1770616700000,"value":81},{"timestamp":1770616720000,"value":70.5},{"timestamp":1770616740000,"value":67.7},{"timestamp":1770616760000,"value":66.4},{"timestamp":1770616780000,"value":66.4},{"timestamp":1770616800000,"value":68.4},{"timestamp":1770616820000,"value":116.2},{"timestamp":1770616840000,"value":69.1},{"timestamp":1770616860000,"value":66.4},{"timestamp":1770616880000,"value":116.2},{"timestamp":1770616900000,"value":65},{"timestamp":1770616920000,"value":65.3},{"timestamp":1770616940000,"value":101},{"timestamp":1770616960000,"value":65},{"timestamp":1770616980000,"value":70.5},{"timestamp":1770617000000,"value":125.8},{"timestamp":1770617020000,"value":67.7},{"timestamp":1770617040000,"value":60},{"timestamp":1770617060000,"value":56.8},{"timestamp":1770617080000,"value":55.4},{"timestamp":1770617100000,"value":58.9},{"timestamp":1770617120000,"value":64.3},{"timestamp":1770617140000,"value":176.8},{"timestamp":1770617160000,"value":356.1},{"timestamp":1770617180000,"value":67.4},{"timestamp":1770617200000,"value":216},{"timestamp":1770617220000,"value":63.8},{"timestamp":1770617240000,"value":99},{"timestamp":1770617260000,"value":57.7},{"timestamp":1770617280000,"value":77.9},{"timestamp":1770617300000,"value":58.9},{"timestamp":1770617320000,"value":56.8},{"timestamp":1770617340000,"value":101},{"timestamp":1770617360000,"value":57.7},{"timestamp":1770617380000,"value":57.7},{"timestamp":1770617400000,"value":61.3},{"timestamp":1770617420000,"value":58.9},{"timestamp":1770617440000,"value":63.8},{"timestamp":1770617460000,"value":67.7},{"timestamp":1770617480000,"value":69.1},{"timestamp":1770617500000,"value":128.4},{"timestamp":1770617520000,"value":59.5},{"timestamp":1770617540000,"value":91.4},{"timestamp":1770617560000,"value":58.9},{"timestamp":1770617580000,"value":64.3},{"timestamp":1770617600000,"value":55.4},{"timestamp":1770617620000,"value":57.7},{"timestamp":1770617640000,"value":66.4},{"timestamp":1770617660000,"value":63.8},{"timestamp":1770617680000,"value":55.4},{"timestamp":1770617700000,"value":63.8},{"timestamp":1770617720000,"value":56.5},{"timestamp":1770617740000,"value":56.5},{"timestamp":1770617760000,"value":91.4},{"timestamp":1770617780000,"value":55.4},{"timestamp":1770617800000,"value":62.5},{"timestamp":1770617820000,"value":81},{"timestamp":1770617840000,"value":56.8},{"timestamp":1770617860000,"value":57.7},{"timestamp":1770617880000,"value":60},{"timestamp":1770617900000,"value":62.5},{"timestamp":1770617920000,"value":123.4},{"timestamp":1770617940000,"value":187.7},{"timestamp":1770617960000,"value":63.8},{"timestamp":1770617980000,"value":75.1},{"timestamp":1770618000000,"value":71.9},{"timestamp":1770618020000,"value":66.4},{"timestamp":1770618040000,"value":64.3},{"timestamp":1770618060000,"value":147.7},{"timestamp":1770618080000,"value":65},{"timestamp":1770618100000,"value":75.1},{"timestamp":1770618120000,"value":74.8},{"timestamp":1770618140000,"value":141.9},{"timestamp":1770618160000,"value":73.3},{"timestamp":1770618180000,"value":81},{"timestamp":1770618200000,"value":69.1},{"timestamp":1770618220000,"value":70.5},{"timestamp":1770618240000,"value":63.8},{"timestamp":1770618260000,"value":77.9},{"timestamp":1770618280000,"value":120.9},{"timestamp":1770618300000,"value":77.9},{"timestamp":1770618320000,"value":89.6},{"timestamp":1770618340000,"value":69.1},{"timestamp":1770618360000,"value":71.9},{"timestamp":1770618380000,"value":111.6},{"timestamp":1770618400000,"value":89.6},{"timestamp":1770618420000,"value":89.6},{"timestamp":1770618440000,"value":91.8},{"timestamp":1770618460000,"value":89.6},{"timestamp":1770618480000,"value":95.1},{"timestamp":1770618500000,"value":90.4},{"timestamp":1770618520000,"value":89.6},{"timestamp":1770618540000,"value":95.1},{"timestamp":1770618560000,"value":90.4},{"timestamp":1770618580000,"value":166.5},{"timestamp":1770618600000,"value":89.6},{"timestamp":1770618620000,"value":95.1},{"timestamp":1770618640000,"value":86.3},{"timestamp":1770618660000,"value":89.6},{"timestamp":1770618680000,"value":91.4},{"timestamp":1770618700000,"value":93.3},{"timestamp":1770618720000,"value":89.6},{"timestamp":1770618740000,"value":101},{"timestamp":1770618760000,"value":97},{"timestamp":1770618780000,"value":87.8},{"timestamp":1770618800000,"value":97},{"timestamp":1770618820000,"value":87.8},{"timestamp":1770618840000,"value":83.7},{"timestamp":1770618860000,"value":89.6},{"timestamp":1770618880000,"value":87.8},{"timestamp":1770618900000,"value":86.3},{"timestamp":1770618920000,"value":87.8},{"timestamp":1770618940000,"value":82.7},{"timestamp":1770618960000,"value":125.8},{"timestamp":1770618980000,"value":83.7},{"timestamp":1770619000000,"value":82.7},{"timestamp":1770619020000,"value":89.6},{"timestamp":1770619040000,"value":87.8},{"timestamp":1770619060000,"value":86.1},{"timestamp":1770619080000,"value":87.8},{"timestamp":1770619100000,"value":89},{"timestamp":1770619120000,"value":84.4},{"timestamp":1770619140000,"value":89.6},{"timestamp":1770619160000,"value":163.2},{"timestamp":1770619180000,"value":89},{"timestamp":1770619200000,"value":82.7},{"timestamp":1770619220000,"value":101},{"timestamp":1770619240000,"value":86.1},{"timestamp":1770619260000,"value":81},{"timestamp":1770619280000,"value":109.4},{"timestamp":1770619300000,"value":84.4},{"timestamp":1770619320000,"value":86.1},{"timestamp":1770619340000,"value":87.8},{"timestamp":1770619360000,"value":87.8},{"timestamp":1770619380000,"value":79.4},{"timestamp":1770619400000,"value":81},{"timestamp":1770619420000,"value":93.2},{"timestamp":1770619440000,"value":81.1},{"timestamp":1770619460000,"value":89.6},{"timestamp":1770619480000,"value":91.4},{"timestamp":1770619500000,"value":83.7},{"timestamp":1770619520000,"value":103},{"timestamp":1770619540000,"value":87.8},{"timestamp":1770619560000,"value":86.1},{"timestamp":1770619580000,"value":82.7},{"timestamp":1770619600000,"value":89.6},{"timestamp":1770619620000,"value":81},{"timestamp":1770619640000,"value":81.1},{"timestamp":1770619660000,"value":144.8},{"timestamp":1770619680000,"value":84.4},{"timestamp":1770619700000,"value":81.1},{"timestamp":1770619720000,"value":84.4}],"get_/v1/threads":[{"timestamp":1770616140000,"value":148.5},{"timestamp":1770616180000,"value":95.1},{"timestamp":1770616220000,"value":104},{"timestamp":1770616240000,"value":99},{"timestamp":1770616260000,"value":107.2},{"timestamp":1770616280000,"value":110.6},{"timestamp":1770616300000,"value":108.9},{"timestamp":1770616320000,"value":47.9},{"timestamp":1770616340000,"value":108.9},{"timestamp":1770616360000,"value":99.2},{"timestamp":1770616380000,"value":104},{"timestamp":1770616400000,"value":232.8},{"timestamp":1770616420000,"value":108.9},{"timestamp":1770616440000,"value":117.7},{"timestamp":1770616460000,"value":115.9},{"timestamp":1770616480000,"value":100.8},{"timestamp":1770616500000,"value":107.2},{"timestamp":1770616520000,"value":146.2},{"timestamp":1770616540000,"value":153.2},{"timestamp":1770616560000,"value":112.4},{"timestamp":1770616580000,"value":193.3},{"timestamp":1770616600000,"value":153.2},{"timestamp":1770616620000,"value":155.6},{"timestamp":1770616640000,"value":81.1},{"timestamp":1770616660000,"value":168.1},{"timestamp":1770616680000,"value":123.3},{"timestamp":1770616700000,"value":57.7},{"timestamp":1770616720000,"value":160.5},{"timestamp":1770616740000,"value":141.8},{"timestamp":1770616760000,"value":93.3},{"timestamp":1770616780000,"value":158},{"timestamp":1770616800000,"value":85},{"timestamp":1770616820000,"value":125.2},{"timestamp":1770616840000,"value":99.2},{"timestamp":1770616860000,"value":170.8},{"timestamp":1770616880000,"value":103},{"timestamp":1770616900000,"value":141.8},{"timestamp":1770616920000,"value":176.1},{"timestamp":1770616940000,"value":99.2},{"timestamp":1770616960000,"value":117.7},{"timestamp":1770616980000,"value":193.3},{"timestamp":1770617000000,"value":76.3},{"timestamp":1770617020000,"value":115.9},{"timestamp":1770617040000,"value":43.6},{"timestamp":1770617060000,"value":168.1},{"timestamp":1770617080000,"value":110.6},{"timestamp":1770617100000,"value":119.5},{"timestamp":1770617120000,"value":163},{"timestamp":1770617140000,"value":187.4},{"timestamp":1770617160000,"value":104},{"timestamp":1770617180000,"value":165.5},{"timestamp":1770617200000,"value":117.7},{"timestamp":1770617220000,"value":137.4},{"timestamp":1770617240000,"value":47.2},{"timestamp":1770617260000,"value":165.5},{"timestamp":1770617280000,"value":148.5},{"timestamp":1770617300000,"value":322.4},{"timestamp":1770617320000,"value":215.5},{"timestamp":1770617340000,"value":121.4},{"timestamp":1770617360000,"value":163},{"timestamp":1770617380000,"value":187.4},{"timestamp":1770617400000,"value":81.1},{"timestamp":1770617420000,"value":79.9},{"timestamp":1770617440000,"value":176.1},{"timestamp":1770617460000,"value":176.1},{"timestamp":1770617480000,"value":82.4},{"timestamp":1770617500000,"value":158},{"timestamp":1770617520000,"value":337.8},{"timestamp":1770617540000,"value":76.3},{"timestamp":1770617560000,"value":108.9},{"timestamp":1770617580000,"value":247.7},{"timestamp":1770617600000,"value":39.1},{"timestamp":1770617620000,"value":47.9},{"timestamp":1770617640000,"value":173.4},{"timestamp":1770617660000,"value":104},{"timestamp":1770617680000,"value":68.4},{"timestamp":1770617700000,"value":170.8},{"timestamp":1770617720000,"value":218.8},{"timestamp":1770617740000,"value":78.7},{"timestamp":1770617760000,"value":73.9},{"timestamp":1770617780000,"value":170.8},{"timestamp":1770617800000,"value":75.1},{"timestamp":1770617820000,"value":107.2},{"timestamp":1770617840000,"value":168.1},{"timestamp":1770617860000,"value":93.3},{"timestamp":1770617880000,"value":43},{"timestamp":1770617900000,"value":181.7},{"timestamp":1770617920000,"value":49.4},{"timestamp":1770617940000,"value":93.3},{"timestamp":1770617960000,"value":55.9},{"timestamp":1770617980000,"value":163},{"timestamp":1770618000000,"value":49.4},{"timestamp":1770618020000,"value":75.1},{"timestamp":1770618040000,"value":160.5},{"timestamp":1770618060000,"value":99.2},{"timestamp":1770618080000,"value":47.2},{"timestamp":1770618100000,"value":158},{"timestamp":1770618120000,"value":16},{"timestamp":1770618140000,"value":39.4},{"timestamp":1770618160000,"value":181.7},{"timestamp":1770618180000,"value":57.7},{"timestamp":1770618200000,"value":41.1},{"timestamp":1770618220000,"value":41.9},{"timestamp":1770618240000,"value":168.1},{"timestamp":1770618260000,"value":42.3},{"timestamp":1770618280000,"value":73.9},{"timestamp":1770618300000,"value":165.5},{"timestamp":1770618320000,"value":216},{"timestamp":1770618340000,"value":160},{"timestamp":1770618360000,"value":180.4},{"timestamp":1770618380000,"value":285.7},{"timestamp":1770618400000,"value":328.7},{"timestamp":1770618420000,"value":258.5},{"timestamp":1770618440000,"value":291.5},{"timestamp":1770618460000,"value":702.8},{"timestamp":1770618480000,"value":269.1},{"timestamp":1770618500000,"value":259.5},{"timestamp":1770618520000,"value":303.4},{"timestamp":1770618540000,"value":258.5},{"timestamp":1770618560000,"value":280.1},{"timestamp":1770618580000,"value":253.4},{"timestamp":1770618600000,"value":274.5},{"timestamp":1770618620000,"value":349},{"timestamp":1770618640000,"value":263.8},{"timestamp":1770618660000,"value":335.3},{"timestamp":1770618680000,"value":253.4},{"timestamp":1770618700000,"value":248.4},{"timestamp":1770618720000,"value":248.4},{"timestamp":1770618740000,"value":258.5},{"timestamp":1770618760000,"value":263.8},{"timestamp":1770618780000,"value":269.1},{"timestamp":1770618800000,"value":263.8},{"timestamp":1770618820000,"value":274.5},{"timestamp":1770618840000,"value":276.1},{"timestamp":1770618860000,"value":263.8},{"timestamp":1770618880000,"value":291.5},{"timestamp":1770618900000,"value":276.1},{"timestamp":1770618920000,"value":269.1},{"timestamp":1770618940000,"value":269.1},{"timestamp":1770618960000,"value":731.5},{"timestamp":1770618980000,"value":271.9},{"timestamp":1770619000000,"value":269.1},{"timestamp":1770619020000,"value":274.5},{"timestamp":1770619040000,"value":258.5},{"timestamp":1770619060000,"value":363.3},{"timestamp":1770619080000,"value":269.1},{"timestamp":1770619100000,"value":285.7},{"timestamp":1770619120000,"value":269.1},{"timestamp":1770619140000,"value":280.1},{"timestamp":1770619160000,"value":370.6},{"timestamp":1770619180000,"value":269.1},{"timestamp":1770619200000,"value":322.2},{"timestamp":1770619220000,"value":269.1},{"timestamp":1770619240000,"value":267.7},{"timestamp":1770619260000,"value":263.8},{"timestamp":1770619280000,"value":280.1},{"timestamp":1770619300000,"value":263.8},{"timestamp":1770619320000,"value":356.1},{"timestamp":1770619340000,"value":322.2},{"timestamp":1770619360000,"value":269.1},{"timestamp":1770619380000,"value":298.4},{"timestamp":1770619400000,"value":328.7},{"timestamp":1770619420000,"value":263.8},{"timestamp":1770619440000,"value":269.1},{"timestamp":1770619460000,"value":280.1},{"timestamp":1770619480000,"value":269.1},{"timestamp":1770619500000,"value":263.8},{"timestamp":1770619520000,"value":303.4},{"timestamp":1770619540000,"value":356.1},{"timestamp":1770619560000,"value":274.5},{"timestamp":1770619580000,"value":271.9},{"timestamp":1770619600000,"value":285.7},{"timestamp":1770619620000,"value":285.7},{"timestamp":1770619640000,"value":259.5},{"timestamp":1770619660000,"value":274.5},{"timestamp":1770619680000,"value":315.8},{"timestamp":1770619700000,"value":269.1},{"timestamp":1770619720000,"value":269.1}],"post_/v1/threads/_threadid_:chat":[{"timestamp":1770616160000,"value":18310.4},{"timestamp":1770616200000,"value":23277.3},{"timestamp":1770616240000,"value":92498.5},{"timestamp":1770616260000,"value":10232.8},{"timestamp":1770616300000,"value":7594.6},{"timestamp":1770616320000,"value":14845.5},{"timestamp":1770616340000,"value":8109.5},{"timestamp":1770616360000,"value":8763.2},{"timestamp":1770616380000,"value":16567.9},{"timestamp":1770616400000,"value":21921.7},{"timestamp":1770616420000,"value":18444.3},{"timestamp":1770616440000,"value":7621.8},{"timestamp":1770616460000,"value":11330},{"timestamp":1770616480000,"value":10075.4},{"timestamp":1770616500000,"value":9617.5},{"timestamp":1770616540000,"value":16292.8},{"timestamp":1770616560000,"value":7010.7},{"timestamp":1770616620000,"value":65858.9},{"timestamp":1770616660000,"value":7594.6},{"timestamp":1770616680000,"value":98251.2},{"timestamp":1770616700000,"value":13838.6},{"timestamp":1770616720000,"value":10048.8},{"timestamp":1770616760000,"value":9849.8},{"timestamp":1770616780000,"value":8109.5},{"timestamp":1770616800000,"value":13318.7},{"timestamp":1770616820000,"value":7444.2},{"timestamp":1770616860000,"value":12325.2},{"timestamp":1770616880000,"value":10392.7},{"timestamp":1770616900000,"value":42605.5},{"timestamp":1770616940000,"value":23277.3},{"timestamp":1770616960000,"value":50780.2},{"timestamp":1770617000000,"value":15918.3},{"timestamp":1770617040000,"value":8628.3},{"timestamp":1770617060000,"value":44634},{"timestamp":1770617080000,"value":7984.7},{"timestamp":1770617100000,"value":9180.4},{"timestamp":1770617120000,"value":29005.6},{"timestamp":1770617160000,"value":6735.8},{"timestamp":1770617180000,"value":19442.7},{"timestamp":1770617200000,"value":32056.2},{"timestamp":1770617240000,"value":19835.5},{"timestamp":1770617260000,"value":48985.3},{"timestamp":1770617300000,"value":12030.7},{"timestamp":1770617320000,"value":45037.8},{"timestamp":1770617360000,"value":23747.6},{"timestamp":1770617400000,"value":14694.4},{"timestamp":1770617420000,"value":36873.6},{"timestamp":1770617440000,"value":7621.8},{"timestamp":1770617460000,"value":6602.4},{"timestamp":1770617480000,"value":7296.8},{"timestamp":1770617540000,"value":16805.9},{"timestamp":1770617560000,"value":21062.1},{"timestamp":1770617580000,"value":25542.5},{"timestamp":1770617640000,"value":62023.5},{"timestamp":1770617660000,"value":6735.8},{"timestamp":1770617680000,"value":19442.7},{"timestamp":1770617700000,"value":11558.9},{"timestamp":1770617720000,"value":7444.2},{"timestamp":1770617740000,"value":8064.3},{"timestamp":1770617760000,"value":15918.3},{"timestamp":1770617800000,"value":38378.5},{"timestamp":1770617820000,"value":8064.3},{"timestamp":1770617840000,"value":10885.7},{"timestamp":1770617860000,"value":7594.6},{"timestamp":1770617880000,"value":49774.6},{"timestamp":1770617920000,"value":11105.7},{"timestamp":1770617980000,"value":11330},{"timestamp":1770618020000,"value":85415.1},{"timestamp":1770618040000,"value":13032.7},{"timestamp":1770618100000,"value":15603.1},{"timestamp":1770618120000,"value":13032.7},{"timestamp":1770618140000,"value":25216.1},{"timestamp":1770618320000,"value":17592.5}]};
+        const rateTimeSeriesData = {"post_/v1/threads/_threadid_:retry":[{"timestamp":1770616200000,"value":0.05},{"timestamp":1770616560000,"value":0.05},{"timestamp":1770616580000,"value":0.05},{"timestamp":1770616600000,"value":0.1},{"timestamp":1770616620000,"value":0.05},{"timestamp":1770616640000,"value":0.05},{"timestamp":1770616660000,"value":0.1},{"timestamp":1770616680000,"value":0.05},{"timestamp":1770616700000,"value":0.05},{"timestamp":1770616720000,"value":0.1},{"timestamp":1770616740000,"value":0.05},{"timestamp":1770616760000,"value":0.05},{"timestamp":1770616780000,"value":0.05},{"timestamp":1770616800000,"value":0.1},{"timestamp":1770616820000,"value":0.05},{"timestamp":1770616840000,"value":0.05},{"timestamp":1770616860000,"value":0.1},{"timestamp":1770616880000,"value":0.05},{"timestamp":1770616900000,"value":0.05},{"timestamp":1770616920000,"value":0.1},{"timestamp":1770616940000,"value":0.05},{"timestamp":1770616960000,"value":0.05},{"timestamp":1770616980000,"value":0.1},{"timestamp":1770617000000,"value":0.05},{"timestamp":1770617020000,"value":0.05},{"timestamp":1770617040000,"value":0.05},{"timestamp":1770617060000,"value":0.1},{"timestamp":1770617080000,"value":0.05},{"timestamp":1770617100000,"value":0.05},{"timestamp":1770617120000,"value":0.1},{"timestamp":1770617140000,"value":0.05},{"timestamp":1770617160000,"value":0.05},{"timestamp":1770617180000,"value":0.1},{"timestamp":1770617200000,"value":0.05},{"timestamp":1770617220000,"value":0.05},{"timestamp":1770617240000,"value":0.05},{"timestamp":1770617260000,"value":0.1},{"timestamp":1770617280000,"value":0.05},{"timestamp":1770617300000,"value":0.05},{"timestamp":1770617320000,"value":0.1},{"timestamp":1770617340000,"value":0.05},{"timestamp":1770617360000,"value":0.05},{"timestamp":1770617380000,"value":0.1},{"timestamp":1770617400000,"value":0.05},{"timestamp":1770617420000,"value":0.05},{"timestamp":1770617440000,"value":0.1},{"timestamp":1770617460000,"value":0.05},{"timestamp":1770617480000,"value":0.05},{"timestamp":1770617500000,"value":0.05},{"timestamp":1770617520000,"value":0.1},{"timestamp":1770617540000,"value":0.05},{"timestamp":1770617560000,"value":0.05},{"timestamp":1770617580000,"value":0.1},{"timestamp":1770617600000,"value":0.05},{"timestamp":1770617620000,"value":0.05},{"timestamp":1770617640000,"value":0.1},{"timestamp":1770617660000,"value":0.05},{"timestamp":1770617680000,"value":0.05},{"timestamp":1770617700000,"value":0.05},{"timestamp":1770617720000,"value":0.1},{"timestamp":1770617740000,"value":0.05},{"timestamp":1770617760000,"value":0.05},{"timestamp":1770617780000,"value":0.1},{"timestamp":1770617800000,"value":0.05},{"timestamp":1770617820000,"value":0.05},{"timestamp":1770617840000,"value":0.1},{"timestamp":1770617860000,"value":0.05},{"timestamp":1770617880000,"value":0.05},{"timestamp":1770617900000,"value":0.1},{"timestamp":1770617920000,"value":0.05},{"timestamp":1770617940000,"value":0.05},{"timestamp":1770617960000,"value":0.05},{"timestamp":1770617980000,"value":0.1},{"timestamp":1770618000000,"value":0.05},{"timestamp":1770618020000,"value":0.05},{"timestamp":1770618040000,"value":0.1},{"timestamp":1770618060000,"value":0.05},{"timestamp":1770618080000,"value":0.05},{"timestamp":1770618100000,"value":0.1},{"timestamp":1770618120000,"value":0.05},{"timestamp":1770618140000,"value":0.05},{"timestamp":1770618160000,"value":0.1},{"timestamp":1770618180000,"value":0.05},{"timestamp":1770618200000,"value":0.05},{"timestamp":1770618220000,"value":0.05},{"timestamp":1770618240000,"value":0.1},{"timestamp":1770618260000,"value":0.05},{"timestamp":1770618280000,"value":0.05},{"timestamp":1770618300000,"value":0.1},{"timestamp":1770618320000,"value":0.05},{"timestamp":1770618340000,"value":0.05},{"timestamp":1770618360000,"value":0.1},{"timestamp":1770618380000,"value":0.05},{"timestamp":1770618400000,"value":0.05},{"timestamp":1770618420000,"value":0.05},{"timestamp":1770618440000,"value":0.1},{"timestamp":1770618460000,"value":0.05},{"timestamp":1770618480000,"value":0.05},{"timestamp":1770618500000,"value":0.1},{"timestamp":1770618520000,"value":0.05},{"timestamp":1770618540000,"value":0.05},{"timestamp":1770618560000,"value":0.1},{"timestamp":1770618580000,"value":0.05},{"timestamp":1770618600000,"value":0.05},{"timestamp":1770618620000,"value":0.05},{"timestamp":1770618640000,"value":0.1},{"timestamp":1770618660000,"value":0.05},{"timestamp":1770618680000,"value":0.05},{"timestamp":1770618700000,"value":0.1},{"timestamp":1770618720000,"value":0.05},{"timestamp":1770618740000,"value":0.05},{"timestamp":1770618760000,"value":0.1},{"timestamp":1770618780000,"value":0.05},{"timestamp":1770618800000,"value":0.05},{"timestamp":1770618820000,"value":0.05},{"timestamp":1770618840000,"value":0.1},{"timestamp":1770618860000,"value":0.05},{"timestamp":1770618880000,"value":0.05},{"timestamp":1770618900000,"value":0.1},{"timestamp":1770618920000,"value":0.05},{"timestamp":1770618940000,"value":0.05},{"timestamp":1770618960000,"value":0.05},{"timestamp":1770618980000,"value":0.1},{"timestamp":1770619000000,"value":0.05},{"timestamp":1770619020000,"value":0.05},{"timestamp":1770619040000,"value":0.1},{"timestamp":1770619060000,"value":0.05},{"timestamp":1770619080000,"value":0.05},{"timestamp":1770619100000,"value":0.1},{"timestamp":1770619120000,"value":0.05},{"timestamp":1770619140000,"value":0.05},{"timestamp":1770619160000,"value":0.05},{"timestamp":1770619180000,"value":0.1},{"timestamp":1770619200000,"value":0.05},{"timestamp":1770619220000,"value":0.05},{"timestamp":1770619240000,"value":0.1},{"timestamp":1770619260000,"value":0.05},{"timestamp":1770619280000,"value":0.05},{"timestamp":1770619300000,"value":0.1},{"timestamp":1770619320000,"value":0.05},{"timestamp":1770619340000,"value":0.05},{"timestamp":1770619360000,"value":0.05},{"timestamp":1770619380000,"value":0.1},{"timestamp":1770619400000,"value":0.05},{"timestamp":1770619420000,"value":0.05},{"timestamp":1770619440000,"value":0.1},{"timestamp":1770619460000,"value":0.05},{"timestamp":1770619480000,"value":0.05},{"timestamp":1770619500000,"value":0.1},{"timestamp":1770619520000,"value":0.05},{"timestamp":1770619540000,"value":0.05},{"timestamp":1770619560000,"value":0.05},{"timestamp":1770619580000,"value":0.1},{"timestamp":1770619600000,"value":0.05},{"timestamp":1770619620000,"value":0.05},{"timestamp":1770619640000,"value":0.1},{"timestamp":1770619660000,"value":0.05},{"timestamp":1770619680000,"value":0.05},{"timestamp":1770619700000,"value":0.1},{"timestamp":1770619720000,"value":0.05}],"get_/v1/threads":[{"timestamp":1770616140000,"value":0.5},{"timestamp":1770616180000,"value":0.05},{"timestamp":1770616220000,"value":0.15},{"timestamp":1770616240000,"value":0.1},{"timestamp":1770616260000,"value":0.2},{"timestamp":1770616280000,"value":0.35},{"timestamp":1770616300000,"value":0.15},{"timestamp":1770616320000,"value":0.1},{"timestamp":1770616340000,"value":0.3},{"timestamp":1770616360000,"value":0.2},{"timestamp":1770616380000,"value":0.15},{"timestamp":1770616400000,"value":0.3},{"timestamp":1770616420000,"value":0.15},{"timestamp":1770616440000,"value":0.2},{"timestamp":1770616460000,"value":0.2},{"timestamp":1770616480000,"value":0.2},{"timestamp":1770616500000,"value":0.25},{"timestamp":1770616520000,"value":0.3},{"timestamp":1770616540000,"value":0.25},{"timestamp":1770616560000,"value":0.25},{"timestamp":1770616580000,"value":0.2},{"timestamp":1770616600000,"value":0.2},{"timestamp":1770616620000,"value":0.3},{"timestamp":1770616640000,"value":0.2},{"timestamp":1770616660000,"value":0.25},{"timestamp":1770616680000,"value":0.35},{"timestamp":1770616700000,"value":0.1},{"timestamp":1770616720000,"value":0.35},{"timestamp":1770616740000,"value":0.3},{"timestamp":1770616760000,"value":0.25},{"timestamp":1770616780000,"value":0.25},{"timestamp":1770616800000,"value":0.2},{"timestamp":1770616820000,"value":0.2},{"timestamp":1770616840000,"value":0.2},{"timestamp":1770616860000,"value":0.2},{"timestamp":1770616880000,"value":0.1},{"timestamp":1770616900000,"value":0.15},{"timestamp":1770616920000,"value":0.3},{"timestamp":1770616940000,"value":0.1},{"timestamp":1770616960000,"value":0.3},{"timestamp":1770616980000,"value":0.3},{"timestamp":1770617000000,"value":0.25},{"timestamp":1770617020000,"value":0.25},{"timestamp":1770617040000,"value":0.1},{"timestamp":1770617060000,"value":0.25},{"timestamp":1770617080000,"value":0.25},{"timestamp":1770617100000,"value":0.15},{"timestamp":1770617120000,"value":0.35},{"timestamp":1770617140000,"value":0.3},{"timestamp":1770617160000,"value":0.1},{"timestamp":1770617180000,"value":0.15},{"timestamp":1770617200000,"value":0.1},{"timestamp":1770617220000,"value":0.15},{"timestamp":1770617240000,"value":0.1},{"timestamp":1770617260000,"value":0.2},{"timestamp":1770617280000,"value":0.25},{"timestamp":1770617300000,"value":0.2},{"timestamp":1770617320000,"value":0.3},{"timestamp":1770617340000,"value":0.25},{"timestamp":1770617360000,"value":0.35},{"timestamp":1770617380000,"value":0.25},{"timestamp":1770617400000,"value":0.15},{"timestamp":1770617420000,"value":0.2},{"timestamp":1770617440000,"value":0.3},{"timestamp":1770617460000,"value":0.3},{"timestamp":1770617480000,"value":0.15},{"timestamp":1770617500000,"value":0.3},{"timestamp":1770617520000,"value":0.2},{"timestamp":1770617540000,"value":0.1},{"timestamp":1770617560000,"value":0.15},{"timestamp":1770617580000,"value":0.15},{"timestamp":1770617600000,"value":0.15},{"timestamp":1770617620000,"value":0.15},{"timestamp":1770617640000,"value":0.2},{"timestamp":1770617660000,"value":0.15},{"timestamp":1770617680000,"value":0.15},{"timestamp":1770617700000,"value":0.25},{"timestamp":1770617720000,"value":0.25},{"timestamp":1770617740000,"value":0.15},{"timestamp":1770617760000,"value":0.15},{"timestamp":1770617780000,"value":0.2},{"timestamp":1770617800000,"value":0.15},{"timestamp":1770617820000,"value":0.1},{"timestamp":1770617840000,"value":0.2},{"timestamp":1770617860000,"value":0.2},{"timestamp":1770617880000,"value":0.2},{"timestamp":1770617900000,"value":0.25},{"timestamp":1770617920000,"value":0.35},{"timestamp":1770617940000,"value":0.2},{"timestamp":1770617960000,"value":0.15},{"timestamp":1770617980000,"value":0.25},{"timestamp":1770618000000,"value":0.15},{"timestamp":1770618020000,"value":0.15},{"timestamp":1770618040000,"value":0.3},{"timestamp":1770618060000,"value":0.2},{"timestamp":1770618080000,"value":0.25},{"timestamp":1770618100000,"value":0.3},{"timestamp":1770618120000,"value":0.1},{"timestamp":1770618140000,"value":0.1},{"timestamp":1770618160000,"value":0.15},{"timestamp":1770618180000,"value":0.15},{"timestamp":1770618200000,"value":0.1},{"timestamp":1770618220000,"value":0.1},{"timestamp":1770618240000,"value":0.15},{"timestamp":1770618260000,"value":0.15},{"timestamp":1770618280000,"value":0.1},{"timestamp":1770618300000,"value":0.15},{"timestamp":1770618320000,"value":0.05},{"timestamp":1770618340000,"value":0.05},{"timestamp":1770618360000,"value":0.1},{"timestamp":1770618380000,"value":0.05},{"timestamp":1770618400000,"value":0.05},{"timestamp":1770618420000,"value":0.1},{"timestamp":1770618440000,"value":0.05},{"timestamp":1770618460000,"value":0.05},{"timestamp":1770618480000,"value":0.05},{"timestamp":1770618500000,"value":0.1},{"timestamp":1770618520000,"value":0.05},{"timestamp":1770618540000,"value":0.05},{"timestamp":1770618560000,"value":0.1},{"timestamp":1770618580000,"value":0.05},{"timestamp":1770618600000,"value":0.05},{"timestamp":1770618620000,"value":0.05},{"timestamp":1770618640000,"value":0.1},{"timestamp":1770618660000,"value":0.05},{"timestamp":1770618680000,"value":0.05},{"timestamp":1770618700000,"value":0.1},{"timestamp":1770618720000,"value":0.05},{"timestamp":1770618740000,"value":0.05},{"timestamp":1770618760000,"value":0.1},{"timestamp":1770618780000,"value":0.05},{"timestamp":1770618800000,"value":0.05},{"timestamp":1770618820000,"value":0.05},{"timestamp":1770618840000,"value":0.15},{"timestamp":1770618860000,"value":0.05},{"timestamp":1770618880000,"value":0.05},{"timestamp":1770618900000,"value":0.1},{"timestamp":1770618920000,"value":0.05},{"timestamp":1770618940000,"value":0.05},{"timestamp":1770618960000,"value":0.05},{"timestamp":1770618980000,"value":0.1},{"timestamp":1770619000000,"value":0.05},{"timestamp":1770619020000,"value":0.05},{"timestamp":1770619040000,"value":0.1},{"timestamp":1770619060000,"value":0.05},{"timestamp":1770619080000,"value":0.05},{"timestamp":1770619100000,"value":0.1},{"timestamp":1770619120000,"value":0.05},{"timestamp":1770619140000,"value":0.05},{"timestamp":1770619160000,"value":0.05},{"timestamp":1770619180000,"value":0.1},{"timestamp":1770619200000,"value":0.05},{"timestamp":1770619220000,"value":0.05},{"timestamp":1770619240000,"value":0.1},{"timestamp":1770619260000,"value":0.05},{"timestamp":1770619280000,"value":0.05},{"timestamp":1770619300000,"value":0.1},{"timestamp":1770619320000,"value":0.05},{"timestamp":1770619340000,"value":0.05},{"timestamp":1770619360000,"value":0.05},{"timestamp":1770619380000,"value":0.1},{"timestamp":1770619400000,"value":0.05},{"timestamp":1770619420000,"value":0.05},{"timestamp":1770619440000,"value":0.1},{"timestamp":1770619460000,"value":0.05},{"timestamp":1770619480000,"value":0.05},{"timestamp":1770619500000,"value":0.1},{"timestamp":1770619520000,"value":0.05},{"timestamp":1770619540000,"value":0.05},{"timestamp":1770619560000,"value":0.05},{"timestamp":1770619580000,"value":0.1},{"timestamp":1770619600000,"value":0.05},{"timestamp":1770619620000,"value":0.05},{"timestamp":1770619640000,"value":0.1},{"timestamp":1770619660000,"value":0.05},{"timestamp":1770619680000,"value":0.05},{"timestamp":1770619700000,"value":0.1},{"timestamp":1770619720000,"value":0.05}],"post_/v1/threads/_threadid_:chat":[{"timestamp":1770616160000,"value":0.05},{"timestamp":1770616200000,"value":0.1},{"timestamp":1770616240000,"value":0.15},{"timestamp":1770616260000,"value":0.15},{"timestamp":1770616300000,"value":0.1},{"timestamp":1770616320000,"value":0.15},{"timestamp":1770616340000,"value":0.1},{"timestamp":1770616360000,"value":0.1},{"timestamp":1770616380000,"value":0.1},{"timestamp":1770616400000,"value":0.05},{"timestamp":1770616420000,"value":0.1},{"timestamp":1770616440000,"value":0.2},{"timestamp":1770616460000,"value":0.1},{"timestamp":1770616480000,"value":0.1},{"timestamp":1770616500000,"value":0.15},{"timestamp":1770616540000,"value":0.1},{"timestamp":1770616560000,"value":0.1},{"timestamp":1770616620000,"value":0.05},{"timestamp":1770616660000,"value":0.05},{"timestamp":1770616680000,"value":0.05},{"timestamp":1770616700000,"value":0.1},{"timestamp":1770616720000,"value":0.1},{"timestamp":1770616760000,"value":0.05},{"timestamp":1770616780000,"value":0.1},{"timestamp":1770616800000,"value":0.15},{"timestamp":1770616820000,"value":0.05},{"timestamp":1770616860000,"value":0.1},{"timestamp":1770616880000,"value":0.1},{"timestamp":1770616900000,"value":0.2},{"timestamp":1770616940000,"value":0.1},{"timestamp":1770616960000,"value":0.05},{"timestamp":1770617000000,"value":0.05},{"timestamp":1770617040000,"value":0.1},{"timestamp":1770617060000,"value":0.1},{"timestamp":1770617080000,"value":0.1},{"timestamp":1770617100000,"value":0.1},{"timestamp":1770617120000,"value":0.05},{"timestamp":1770617160000,"value":0.1},{"timestamp":1770617180000,"value":0.05},{"timestamp":1770617200000,"value":0.1},{"timestamp":1770617240000,"value":0.05},{"timestamp":1770617260000,"value":0.15},{"timestamp":1770617300000,"value":0.1},{"timestamp":1770617320000,"value":0.05},{"timestamp":1770617360000,"value":0.05},{"timestamp":1770617400000,"value":0.05},{"timestamp":1770617420000,"value":0.05},{"timestamp":1770617440000,"value":0.1},{"timestamp":1770617460000,"value":0.05},{"timestamp":1770617480000,"value":0.05},{"timestamp":1770617540000,"value":0.1},{"timestamp":1770617560000,"value":0.05},{"timestamp":1770617580000,"value":0.1},{"timestamp":1770617640000,"value":0.05},{"timestamp":1770617660000,"value":0.1},{"timestamp":1770617680000,"value":0.05},{"timestamp":1770617700000,"value":0.05},{"timestamp":1770617720000,"value":0.1},{"timestamp":1770617740000,"value":0.05},{"timestamp":1770617760000,"value":0.1},{"timestamp":1770617800000,"value":0.05},{"timestamp":1770617820000,"value":0.1},{"timestamp":1770617840000,"value":0.05},{"timestamp":1770617860000,"value":0.05},{"timestamp":1770617880000,"value":0.05},{"timestamp":1770617920000,"value":0.05},{"timestamp":1770617980000,"value":0.05},{"timestamp":1770618020000,"value":0.05},{"timestamp":1770618040000,"value":0.05},{"timestamp":1770618100000,"value":0.05},{"timestamp":1770618120000,"value":0.05},{"timestamp":1770618140000,"value":0.05},{"timestamp":1770618320000,"value":0.05}]};
+        const serviceMetrics = {"p95_service":{"status":"ok","res_type":"time_series","resp_version":1,"query":"p95:trace.fastapi.request{env:staging,service:operator-agent-service}","from_date":1770616080000,"to_date":1770619740000,"series":[{"aggr":"p95","attributes":{},"display_name":"trace.fastapi.request","end":1770619739000,"expression":"p95:trace.fastapi.request{env:staging,service:operator-agent-service}","interval":20,"length":180,"metric":"trace.fastapi.request","pointlist":[[1770616140000,0.14851861261810717],[1770616160000,18.310448889744368],[1770616180000,0.09511168280725844],[1770616200000,23.273603459592756],[1770616220000,0.10397120622194485],[1770616240000,92.49849936704244],[1770616260000,10.232796786058842],[1770616280000,0.11062330085430168],[1770616300000,7.504585265766724],[1770616320000,14.845524065483023],[1770616340000,8.109491251765064],[1770616360000,8.763155595345905],[1770616380000,16.547378919484686],[1770616400000,0.280446208314868],[1770616420000,18.444330284145966],[1770616440000,7.6218444105443295],[1770616460000,11.23038501239532],[1770616480000,10.075369143196395],[1770616500000,9.617469526350755],[1770616520000,0.1462337108855209],[1770616540000,16.292803859184925],[1770616560000,6.944800637019614],[1770616580000,0.19330735960875614],[1770616600000,0.15319607868933174],[1770616620000,0.17613598518151768],[1770616640000,0.08112952998076846],[1770616660000,0.243920964548234],[1770616680000,0.23647343687327022],[1770616700000,13.738161581980924],[1770616720000,9.920363464070299],[1770616740000,0.14176882361824703],[1770616760000,0.22225361457569237],[1770616780000,8.109491251765064],[1770616800000,13.318700553797365],[1770616820000,0.18740519407277278],[1770616840000,0.09924598228073012],[1770616860000,12.325227419590838],[1770616880000,10.392684235841012],[1770616900000,42.60548899102538],[1770616920000,0.17613598518151768],[1770616940000,23.273603459592756],[1770616960000,0.15802085753477213],[1770616980000,0.19330735960875614],[1770617000000,0.2154676462253339],[1770617020000,0.11589021300168077],[1770617040000,8.62833781695597],[1770617060000,44.63398900665416],[1770617080000,7.984729847891756],[1770617100000,9.180380269515492],[1770617120000,0.240168334324415],[1770617140000,0.18740519407277278],[1770617160000,6.7327582033686015],[1770617180000,0.19632778710264293],[1770617200000,31.734472492131392],[1770617220000,0.13744026071960705],[1770617240000,0.1655444259662124],[1770617260000,48.98532548468651],[1770617280000,0.14851861261810717],[1770617300000,11.948906866424634],[1770617320000,0.25160304570710174],[1770617340000,0.12140788934931405],[1770617360000,0.22572632730343759],[1770617380000,0.18740519407277278],[1770617400000,0.17613598518151768],[1770617420000,0.1734262007941097],[1770617440000,7.6218444105443295],[1770617460000,0.3765163528051894],[1770617480000,0.1734262007941097],[1770617500000,0.15802085753477213],[1770617520000,0.33779262587838316],[1770617540000,16.80593171510164],[1770617560000,0.17075810539727726],[1770617580000,25.542530838991627],[1770617600000,0.05592136660044953],[1770617620000,0.05768256198410626],[1770617640000,0.1816832366679473],[1770617660000,6.7327582033686015],[1770617680000,0.1655444259662124],[1770617700000,0.36502035055385934],[1770617720000,7.389130107831852],[1770617740000,0.17888810994997886],[1770617760000,15.795343102300935],[1770617780000,0.17075810539727726],[1770617800000,0.1655444259662124],[1770617820000,7.984729847891756],[1770617840000,0.20567519582009627],[1770617860000,0.16813105762193453],[1770617880000,0.16813105762193453],[1770617900000,0.1816832366679473],[1770617920000,0.18452203724088398],[1770617940000,0.15558976741885253],[1770617960000,0.06330599474675681],[1770617980000,0.2677006493672927],[1770618000000,0.07166579099381643],[1770618020000,0.36502035055385934],[1770618040000,0.17613598518151768],[1770618060000,0.14851861261810717],[1770618080000,0.0642951509146749],[1770618100000,0.15802085753477213],[1770618120000,0.17888810994997886],[1770618140000,0.16048993343375298],[1770618160000,0.1816832366679473],[1770618180000,0.08112952998076846],[1770618200000,0.06840876509524993],[1770618220000,0.07056324036314232],[1770618240000,0.16813105762193453],[1770618260000,0.07744240148303529],[1770618280000,0.11954007566701691],[1770618300000,0.1655444259662124],[1770618320000,0.2154676462253339],[1770618340000,0.0694776520498632],[1770618360000,0.17888810994997886],[1770618380000,0.11161518904778223],[1770618400000,0.08957263044120095],[1770618420000,0.25553434329627517],[1770618440000,0.09924598228073012],[1770618460000,0.08957263044120095],[1770618480000,0.09511168280725844],[1770618500000,0.2595270674102795],[1770618520000,0.09043002242493009],[1770618540000,0.09511168280725844],[1770618560000,0.27613165126387007],[1770618580000,0.16813105762193453],[1770618600000,0.08957263044120095],[1770618620000,0.09511168280725844],[1770618640000,0.2635821778385652],[1770618660000,0.08957263044120095],[1770618680000,0.09184299152531963],[1770618700000,0.2477322296193002],[1770618720000,0.08957263044120095],[1770618740000,0.10099326280662055],[1770618760000,0.2635821778385652],[1770618780000,0.08779891498691988],[1770618800000,0.09771912101487273],[1770618820000,0.08779891498691988],[1770618840000,0.27613165126387007],[1770618860000,0.08957263044120095],[1770618880000,0.08779891498691988],[1770618900000,0.27613165126387007],[1770618920000,0.08779891498691988],[1770618940000,0.08268573884029369],[1770618960000,0.12718826909086367],[1770618980000,0.2718834720136567],[1770619000000,0.08368463480682296],[1770619020000,0.09043002242493009],[1770619040000,0.25553434329627517],[1770619060000,0.08606032261094138],[1770619080000,0.0890387913107004],[1770619100000,0.28482818031978785],[1770619120000,0.08435615780676416],[1770619140000,0.08957263044120095],[1770619160000,0.1655444259662124],[1770619180000,0.2677006493672927],[1770619200000,0.08268573884029369],[1770619220000,0.10099326280662055],[1770619240000,0.2677006493672927],[1770619260000,0.08112952998076846],[1770619280000,0.11062330085430168],[1770619300000,0.2635821778385652],[1770619320000,0.08606032261094138],[1770619340000,0.08779891498691988],[1770619360000,0.08779891498691988],[1770619380000,0.2983892021954412],[1770619400000,0.08112952998076846],[1770619420000,0.09322828314770856],[1770619440000,0.2677006493672927],[1770619460000,0.09043002242493009],[1770619480000,0.09184299152531963],[1770619500000,0.2635821778385652],[1770619520000,0.10303353074210769],[1770619540000,0.08779891498691988],[1770619560000,0.08606032261094138],[1770619580000,0.2718834720136567],[1770619600000,0.08957263044120095],[1770619620000,0.08112952998076846],[1770619640000,0.2595270674102795],[1770619660000,0.14475835144717844],[1770619680000,0.08435615780676416],[1770619700000,0.2677006493672927],[1770619720000,0.08499220722567954]],"query_index":0,"scope":"env:staging,service:operator-agent-service","start":1770616140000,"tag_set":[],"unit":[{"family":"time","name":"second","plural":"seconds","scale_factor":1,"short_name":"s","id":11},null]}],"values":[],"times":[],"message":"","group_by":[]},"rate_service":{"status":"ok","res_type":"time_series","resp_version":1,"query":"autosmooth(sum:trace.fastapi.request.hits{env:staging,service:operator-agent-service}.as_rate())","from_date":1770616080000,"to_date":1770619740000,"series":[{"aggr":"sum","attributes":{"smoothing_window":[17]},"display_name":"autosmooth(trace.fastapi.request.hits)","end":1770619739000,"expression":"autosmooth(sum:trace.fastapi.request.hits{env:staging,service:operator-agent-service}.as_rate())","interval":20,"length":183,"metric":"autosmooth(trace.fastapi.request.hits)","pointlist":[[1770616080000,0.020588235294117647],[1770616100000,0.020588235294117647],[1770616120000,0.020588235294117647],[1770616140000,0.049999999999999996],[1770616160000,0.052941176470588235],[1770616180000,0.05588235294117647],[1770616200000,0.06470588235294118],[1770616220000,0.07352941176470588],[1770616240000,0.08823529411764706],[1770616260000,0.10882352941176471],[1770616280000,0.12941176470588237],[1770616300000,0.14411764705882354],[1770616320000,0.15882352941176472],[1770616340000,0.1823529411764706],[1770616360000,0.17941176470588235],[1770616380000,0.1941176470588235],[1770616400000,0.21470588235294116],[1770616420000,0.22941176470588234],[1770616440000,0.2529411764705883],[1770616460000,0.2705882352941177],[1770616480000,0.25882352941176473],[1770616500000,0.27941176470588236],[1770616520000,0.29411764705882354],[1770616540000,0.30588235294117644],[1770616560000,0.3205882352941177],[1770616580000,0.3205882352941177],[1770616600000,0.31764705882352945],[1770616620000,0.3205882352941177],[1770616640000,0.3205882352941177],[1770616660000,0.3294117647058824],[1770616680000,0.33235294117647063],[1770616700000,0.32941176470588235],[1770616720000,0.3470588235294118],[1770616740000,0.3470588235294118],[1770616760000,0.35294117647058826],[1770616780000,0.35294117647058826],[1770616800000,0.36176470588235293],[1770616820000,0.361764705882353],[1770616840000,0.35294117647058826],[1770616860000,0.35882352941176476],[1770616880000,0.3529411764705883],[1770616900000,0.3529411764705883],[1770616920000,0.361764705882353],[1770616940000,0.35882352941176476],[1770616960000,0.35882352941176476],[1770616980000,0.3676470588235295],[1770617000000,0.3647058823529412],[1770617020000,0.3558823529411766],[1770617040000,0.3558823529411766],[1770617060000,0.3500000000000001],[1770617080000,0.3529411764705883],[1770617100000,0.35000000000000014],[1770617120000,0.3558823529411766],[1770617140000,0.35000000000000026],[1770617160000,0.347058823529412],[1770617180000,0.35000000000000026],[1770617200000,0.3411764705882355],[1770617220000,0.33823529411764724],[1770617240000,0.3264705882352943],[1770617260000,0.32941176470588246],[1770617280000,0.33235294117647074],[1770617300000,0.3294117647058825],[1770617320000,0.33235294117647074],[1770617340000,0.3294117647058825],[1770617360000,0.3382352941176472],[1770617380000,0.3441176470588237],[1770617400000,0.3323529411764708],[1770617420000,0.32647058823529435],[1770617440000,0.33823529411764724],[1770617460000,0.33235294117647074],[1770617480000,0.3264705882352942],[1770617500000,0.33235294117647074],[1770617520000,0.33235294117647074],[1770617540000,0.33235294117647074],[1770617560000,0.33529411764705896],[1770617580000,0.3441176470588238],[1770617600000,0.3294117647058826],[1770617620000,0.32352941176470607],[1770617640000,0.32352941176470607],[1770617660000,0.31470588235294145],[1770617680000,0.31176470588235317],[1770617700000,0.3058823529411768],[1770617720000,0.31176470588235317],[1770617740000,0.31176470588235317],[1770617760000,0.31176470588235317],[1770617780000,0.30000000000000027],[1770617800000,0.29117647058823565],[1770617820000,0.29117647058823565],[1770617840000,0.29117647058823565],[1770617860000,0.29117647058823565],[1770617880000,0.29411764705882393],[1770617900000,0.3000000000000005],[1770617920000,0.3058823529411768],[1770617940000,0.3088235294117651],[1770617960000,0.3088235294117651],[1770617980000,0.31176470588235317],[1770618000000,0.30588235294117666],[1770618020000,0.30588235294117666],[1770618040000,0.311764705882353],[1770618060000,0.3000000000000001],[1770618080000,0.3029411764705884],[1770618100000,0.311764705882353],[1770618120000,0.30588235294117666],[1770618140000,0.30294117647058855],[1770618160000,0.30294117647058855],[1770618180000,0.29411764705882393],[1770618200000,0.28529411764705914],[1770618220000,0.2764705882352943],[1770618240000,0.27058823529411774],[1770618260000,0.2558823529411768],[1770618280000,0.2500000000000002],[1770618300000,0.2529411764705885],[1770618320000,0.23823529411764732],[1770618340000,0.23235294117647096],[1770618360000,0.2294117647058829],[1770618380000,0.20882352941176538],[1770618400000,0.20000000000000076],[1770618420000,0.19117647058823592],[1770618440000,0.17352941176470646],[1770618460000,0.16764705882352993],[1770618480000,0.16176470588235337],[1770618500000,0.15882352941176528],[1770618520000,0.15294117647058875],[1770618540000,0.15000000000000066],[1770618560000,0.15294117647058916],[1770618580000,0.14411764705882454],[1770618600000,0.13823529411764798],[1770618620000,0.1352941176470599],[1770618640000,0.13235294117647184],[1770618660000,0.12941176470588378],[1770618680000,0.12941176470588378],[1770618700000,0.12941176470588378],[1770618720000,0.12941176470588378],[1770618740000,0.12941176470588378],[1770618760000,0.13235294117647226],[1770618780000,0.1294117647058842],[1770618800000,0.1294117647058842],[1770618820000,0.1294117647058842],[1770618840000,0.13235294117647226],[1770618860000,0.13235294117647226],[1770618880000,0.13235294117647226],[1770618900000,0.13235294117647226],[1770618920000,0.13235294117647226],[1770618940000,0.13235294117647226],[1770618960000,0.13235294117647226],[1770618980000,0.13235294117647226],[1770619000000,0.13235294117647226],[1770619020000,0.13235294117647226],[1770619040000,0.13235294117647226],[1770619060000,0.13235294117647226],[1770619080000,0.13235294117647226],[1770619100000,0.13235294117647226],[1770619120000,0.13235294117647226],[1770619140000,0.13235294117647226],[1770619160000,0.13235294117647226],[1770619180000,0.1294117647058842],[1770619200000,0.1294117647058842],[1770619220000,0.1294117647058842],[1770619240000,0.1294117647058842],[1770619260000,0.1294117647058842],[1770619280000,0.1294117647058842],[1770619300000,0.13529411764706076],[1770619320000,0.1294117647058842],[1770619340000,0.1294117647058842],[1770619360000,0.1294117647058842],[1770619380000,0.1294117647058842],[1770619400000,0.1294117647058842],[1770619420000,0.1294117647058842],[1770619440000,0.1294117647058842],[1770619460000,0.1294117647058842],[1770619480000,0.1294117647058842],[1770619500000,0.13529411764706076],[1770619520000,0.1294117647058842],[1770619540000,0.1294117647058842],[1770619560000,0.1294117647058842],[1770619580000,0.1294117647058842],[1770619600000,0.1294117647058842],[1770619620000,0.1294117647058842],[1770619640000,0.1294117647058842],[1770619660000,0.1294117647058842],[1770619680000,0.1294117647058842],[1770619700000,0.13529411764706076],[1770619720000,0.1294117647058842]],"query_index":0,"scope":"env:staging,service:operator-agent-service","start":1770616080000,"tag_set":[],"unit":[{"family":"cache","name":"hit","plural":"hits","scale_factor":1,"short_name":"","id":39},{"family":"time","name":"second","plural":"seconds","scale_factor":1,"short_name":"s","id":11}]}],"values":[],"times":[],"message":"","group_by":[]}};
+        console.log('Time series data loaded:', timeSeriesData);
+        console.log('Service metrics loaded:', serviceMetrics);
+        
+        // Create Combined Timeline Chart with service-level data
+        const combinedCtx = document.getElementById('combinedChart').getContext('2d');
+        
+        // Calculate service-level P95 by excluding outlier endpoints (like chat) until service queries work
+        const nonChatEndpoints = [{"resource_name":"post_/v1/threads/_threadid_:retry","service":"operator-agent-service","requests":"208","p95_latency":"147.7 ms","p99_latency":"216.0 ms","rate":"0.06 hits/s","errors":"—","error_rate":"0.00"},{"resource_name":"get_/v1/threads","service":"operator-agent-service","requests":"531","p95_latency":"335.3 ms","p99_latency":"702.8 ms","rate":"0.15 hits/s","errors":"—","error_rate":"0.00"}];
+        const totalRate = 0.24;
+        const totalRequests = 860;
+        
+        // Use non-chat endpoints for more representative service P95
+        const serviceP95 = nonChatEndpoints.length > 0 ? 
+            282.49783491204334 :
+            9508.94511627907;
+        
+        console.log('Total rate:', totalRate.toFixed(2), 'hits/s');
+        console.log('Total requests:', totalRequests);
+        console.log('Service P95 (excluding chat outliers):', serviceP95.toFixed(1), 'ms');
+        
+        // Try to use service-level data first, then fall back to endpoint aggregation
+        let aggregatedRateTimeSeries = [];
+        let aggregatedP95TimeSeries = [];
+        
+        if (serviceMetrics && serviceMetrics.rate_service && serviceMetrics.p95_service) {
+            console.log('Using service-level metrics data');
+            
+            // Extract service-level time series data
+            if (serviceMetrics.rate_service.series && serviceMetrics.rate_service.series.length > 0) {
+                const rateSeries = serviceMetrics.rate_service.series[0];
+                aggregatedRateTimeSeries = rateSeries.pointlist.map(point => ({
+                    x: new Date(point[0]),
+                    y: point[1]
+                }));
+            }
+            
+            if (serviceMetrics.p95_service.series && serviceMetrics.p95_service.series.length > 0) {
+                const p95Series = serviceMetrics.p95_service.series[0];
+                aggregatedP95TimeSeries = p95Series.pointlist.map(point => ({
+                    x: new Date(point[0]),
+                    y: point[1] * 1000 // Convert from seconds to milliseconds
+                }));
+            }
+            
+            console.log('Using service-level time series data, points:', aggregatedP95TimeSeries.length);
+        } else if (Object.keys(timeSeriesData).length > 0) {
+            console.log('Using endpoint aggregated time series data');
+            // Use real time series data - aggregate across all endpoints
+            const allTimestamps = new Set();
+            
+            // Collect all unique timestamps from P95 data
+            Object.values(timeSeriesData).forEach(series => {
+                if (Array.isArray(series)) {
+                    series.forEach(point => allTimestamps.add(point.timestamp));
+                }
+            });
+            
+            // Sort timestamps chronologically
+            const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
+            
+            // Aggregate P95 data (average across all endpoints for each timestamp)
+            aggregatedP95TimeSeries = sortedTimestamps.map(timestamp => {
+                let totalP95 = 0;
+                let count = 0;
+                
+                Object.values(timeSeriesData).forEach(series => {
+                    if (Array.isArray(series)) {
+                        const point = series.find(p => p.timestamp === timestamp);
+                        if (point && point.value) {
+                            totalP95 += point.value;
+                            count++;
+                        }
+                    }
+                });
+                
+                return {
+                    x: new Date(timestamp),
+                    y: count > 0 ? totalP95 / count : 0
+                };
+            });
+            
+            // Aggregate Rate data (sum across all endpoints for each timestamp)
+            if (Object.keys(rateTimeSeriesData).length > 0) {
+                aggregatedRateTimeSeries = sortedTimestamps.map(timestamp => {
+                    let totalRate = 0;
+                    
+                    Object.values(rateTimeSeriesData).forEach(series => {
+                        if (Array.isArray(series)) {
+                            const point = series.find(p => p.timestamp === timestamp);
+                            if (point && point.value) {
+                                totalRate += point.value;
+                            }
+                        }
+                    });
+                    
+                    return {
+                        x: new Date(timestamp),
+                        y: totalRate
+                    };
+                });
+            } else {
+                // Fallback: Create rate data based on calculated total
+                aggregatedRateTimeSeries = sortedTimestamps.map(timestamp => ({
+                    x: new Date(timestamp),
+                    y: totalRate
+                }));
+            }
+            
+            console.log('Using real time series data, points:', aggregatedP95TimeSeries.length);
+        } else {
+            console.log('No time series data available, using aggregate values');
+            // Create simple two-point series for start and end using service-level P95
+            aggregatedRateTimeSeries = [{ x: startTime, y: totalRate }, { x: endTime, y: totalRate }];
+            aggregatedP95TimeSeries = [{ x: startTime, y: serviceP95 }, { x: endTime, y: serviceP95 }];
+        }
+        
+        new Chart(combinedCtx, {
+            type: 'line',
+            data: {
+                datasets: [
+                    {
+                        label: 'Request Rate (hits/s)',
+                        data: aggregatedRateTimeSeries,
+                        borderColor: '#4A90E2',
+                        backgroundColor: 'rgba(74, 144, 226, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        fill: true,
+                        tension: 0.4,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'P95 Latency (ms)',
+                        data: aggregatedP95TimeSeries,
+                        borderColor: '#F5A623',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        fill: false,
+                        tension: 0.2,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    title: { 
+                        display: true, 
+                        text: `operator-agent-service Performance Metrics`,
+                        font: { size: 18, weight: 'bold' }
+                    },
+                    legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 12, padding: 10 } },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.9)',
+                        callbacks: {
+                            label: function(context) {
+                                const isRate = context.datasetIndex === 0;
+                                const unit = isRate ? ' hits/s' : ' ms';
+                                const value = context.parsed.y.toFixed(isRate ? 2 : 1);
+                                return context.dataset.label + ': ' + value + unit;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: { displayFormats: { minute: 'HH:mm' } },
+                        title: { display: true, text: 'Time', font: { size: 14, weight: '600' } }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: { 
+                            display: true, 
+                            text: 'Request Rate (hits/s)', 
+                            font: { size: 14, weight: '600' }, 
+                            color: '#4A90E2' 
+                        },
+                        beginAtZero: true,
+                        grid: { drawOnChartArea: true },
+                        ticks: { color: '#4A90E2' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: { 
+                            display: true, 
+                            text: 'P95 Latency (ms)', 
+                            font: { size: 14, weight: '600' }, 
+                            color: '#F5A623' 
+                        },
+                        beginAtZero: true,
+                        grid: { drawOnChartArea: false },
+                        ticks: { color: '#F5A623' }
+                    }
+                }
+            }
+        });
+        
+        // Initialize endpoint charts
+        function initializeEndpointCharts(index) {
+            const endpoints = ["post_/v1/threads/_threadid_:retry","get_/v1/threads","post_/v1/threads/_threadid_:chat"];
+            const endpoint = endpoints[index];
+            const timeSeries = {"post_/v1/threads/_threadid_:retry":[{"timestamp":1770616200000,"value":169.9},{"timestamp":1770616560000,"value":82.7},{"timestamp":1770616580000,"value":69.1},{"timestamp":1770616600000,"value":70.6},{"timestamp":1770616620000,"value":71.9},{"timestamp":1770616640000,"value":77.9},{"timestamp":1770616660000,"value":129.2},{"timestamp":1770616680000,"value":69.1},{"timestamp":1770616700000,"value":81},{"timestamp":1770616720000,"value":70.5},{"timestamp":1770616740000,"value":67.7},{"timestamp":1770616760000,"value":66.4},{"timestamp":1770616780000,"value":66.4},{"timestamp":1770616800000,"value":68.4},{"timestamp":1770616820000,"value":116.2},{"timestamp":1770616840000,"value":69.1},{"timestamp":1770616860000,"value":66.4},{"timestamp":1770616880000,"value":116.2},{"timestamp":1770616900000,"value":65},{"timestamp":1770616920000,"value":65.3},{"timestamp":1770616940000,"value":101},{"timestamp":1770616960000,"value":65},{"timestamp":1770616980000,"value":70.5},{"timestamp":1770617000000,"value":125.8},{"timestamp":1770617020000,"value":67.7},{"timestamp":1770617040000,"value":60},{"timestamp":1770617060000,"value":56.8},{"timestamp":1770617080000,"value":55.4},{"timestamp":1770617100000,"value":58.9},{"timestamp":1770617120000,"value":64.3},{"timestamp":1770617140000,"value":176.8},{"timestamp":1770617160000,"value":356.1},{"timestamp":1770617180000,"value":67.4},{"timestamp":1770617200000,"value":216},{"timestamp":1770617220000,"value":63.8},{"timestamp":1770617240000,"value":99},{"timestamp":1770617260000,"value":57.7},{"timestamp":1770617280000,"value":77.9},{"timestamp":1770617300000,"value":58.9},{"timestamp":1770617320000,"value":56.8},{"timestamp":1770617340000,"value":101},{"timestamp":1770617360000,"value":57.7},{"timestamp":1770617380000,"value":57.7},{"timestamp":1770617400000,"value":61.3},{"timestamp":1770617420000,"value":58.9},{"timestamp":1770617440000,"value":63.8},{"timestamp":1770617460000,"value":67.7},{"timestamp":1770617480000,"value":69.1},{"timestamp":1770617500000,"value":128.4},{"timestamp":1770617520000,"value":59.5},{"timestamp":1770617540000,"value":91.4},{"timestamp":1770617560000,"value":58.9},{"timestamp":1770617580000,"value":64.3},{"timestamp":1770617600000,"value":55.4},{"timestamp":1770617620000,"value":57.7},{"timestamp":1770617640000,"value":66.4},{"timestamp":1770617660000,"value":63.8},{"timestamp":1770617680000,"value":55.4},{"timestamp":1770617700000,"value":63.8},{"timestamp":1770617720000,"value":56.5},{"timestamp":1770617740000,"value":56.5},{"timestamp":1770617760000,"value":91.4},{"timestamp":1770617780000,"value":55.4},{"timestamp":1770617800000,"value":62.5},{"timestamp":1770617820000,"value":81},{"timestamp":1770617840000,"value":56.8},{"timestamp":1770617860000,"value":57.7},{"timestamp":1770617880000,"value":60},{"timestamp":1770617900000,"value":62.5},{"timestamp":1770617920000,"value":123.4},{"timestamp":1770617940000,"value":187.7},{"timestamp":1770617960000,"value":63.8},{"timestamp":1770617980000,"value":75.1},{"timestamp":1770618000000,"value":71.9},{"timestamp":1770618020000,"value":66.4},{"timestamp":1770618040000,"value":64.3},{"timestamp":1770618060000,"value":147.7},{"timestamp":1770618080000,"value":65},{"timestamp":1770618100000,"value":75.1},{"timestamp":1770618120000,"value":74.8},{"timestamp":1770618140000,"value":141.9},{"timestamp":1770618160000,"value":73.3},{"timestamp":1770618180000,"value":81},{"timestamp":1770618200000,"value":69.1},{"timestamp":1770618220000,"value":70.5},{"timestamp":1770618240000,"value":63.8},{"timestamp":1770618260000,"value":77.9},{"timestamp":1770618280000,"value":120.9},{"timestamp":1770618300000,"value":77.9},{"timestamp":1770618320000,"value":89.6},{"timestamp":1770618340000,"value":69.1},{"timestamp":1770618360000,"value":71.9},{"timestamp":1770618380000,"value":111.6},{"timestamp":1770618400000,"value":89.6},{"timestamp":1770618420000,"value":89.6},{"timestamp":1770618440000,"value":91.8},{"timestamp":1770618460000,"value":89.6},{"timestamp":1770618480000,"value":95.1},{"timestamp":1770618500000,"value":90.4},{"timestamp":1770618520000,"value":89.6},{"timestamp":1770618540000,"value":95.1},{"timestamp":1770618560000,"value":90.4},{"timestamp":1770618580000,"value":166.5},{"timestamp":1770618600000,"value":89.6},{"timestamp":1770618620000,"value":95.1},{"timestamp":1770618640000,"value":86.3},{"timestamp":1770618660000,"value":89.6},{"timestamp":1770618680000,"value":91.4},{"timestamp":1770618700000,"value":93.3},{"timestamp":1770618720000,"value":89.6},{"timestamp":1770618740000,"value":101},{"timestamp":1770618760000,"value":97},{"timestamp":1770618780000,"value":87.8},{"timestamp":1770618800000,"value":97},{"timestamp":1770618820000,"value":87.8},{"timestamp":1770618840000,"value":83.7},{"timestamp":1770618860000,"value":89.6},{"timestamp":1770618880000,"value":87.8},{"timestamp":1770618900000,"value":86.3},{"timestamp":1770618920000,"value":87.8},{"timestamp":1770618940000,"value":82.7},{"timestamp":1770618960000,"value":125.8},{"timestamp":1770618980000,"value":83.7},{"timestamp":1770619000000,"value":82.7},{"timestamp":1770619020000,"value":89.6},{"timestamp":1770619040000,"value":87.8},{"timestamp":1770619060000,"value":86.1},{"timestamp":1770619080000,"value":87.8},{"timestamp":1770619100000,"value":89},{"timestamp":1770619120000,"value":84.4},{"timestamp":1770619140000,"value":89.6},{"timestamp":1770619160000,"value":163.2},{"timestamp":1770619180000,"value":89},{"timestamp":1770619200000,"value":82.7},{"timestamp":1770619220000,"value":101},{"timestamp":1770619240000,"value":86.1},{"timestamp":1770619260000,"value":81},{"timestamp":1770619280000,"value":109.4},{"timestamp":1770619300000,"value":84.4},{"timestamp":1770619320000,"value":86.1},{"timestamp":1770619340000,"value":87.8},{"timestamp":1770619360000,"value":87.8},{"timestamp":1770619380000,"value":79.4},{"timestamp":1770619400000,"value":81},{"timestamp":1770619420000,"value":93.2},{"timestamp":1770619440000,"value":81.1},{"timestamp":1770619460000,"value":89.6},{"timestamp":1770619480000,"value":91.4},{"timestamp":1770619500000,"value":83.7},{"timestamp":1770619520000,"value":103},{"timestamp":1770619540000,"value":87.8},{"timestamp":1770619560000,"value":86.1},{"timestamp":1770619580000,"value":82.7},{"timestamp":1770619600000,"value":89.6},{"timestamp":1770619620000,"value":81},{"timestamp":1770619640000,"value":81.1},{"timestamp":1770619660000,"value":144.8},{"timestamp":1770619680000,"value":84.4},{"timestamp":1770619700000,"value":81.1},{"timestamp":1770619720000,"value":84.4}],"get_/v1/threads":[{"timestamp":1770616140000,"value":148.5},{"timestamp":1770616180000,"value":95.1},{"timestamp":1770616220000,"value":104},{"timestamp":1770616240000,"value":99},{"timestamp":1770616260000,"value":107.2},{"timestamp":1770616280000,"value":110.6},{"timestamp":1770616300000,"value":108.9},{"timestamp":1770616320000,"value":47.9},{"timestamp":1770616340000,"value":108.9},{"timestamp":1770616360000,"value":99.2},{"timestamp":1770616380000,"value":104},{"timestamp":1770616400000,"value":232.8},{"timestamp":1770616420000,"value":108.9},{"timestamp":1770616440000,"value":117.7},{"timestamp":1770616460000,"value":115.9},{"timestamp":1770616480000,"value":100.8},{"timestamp":1770616500000,"value":107.2},{"timestamp":1770616520000,"value":146.2},{"timestamp":1770616540000,"value":153.2},{"timestamp":1770616560000,"value":112.4},{"timestamp":1770616580000,"value":193.3},{"timestamp":1770616600000,"value":153.2},{"timestamp":1770616620000,"value":155.6},{"timestamp":1770616640000,"value":81.1},{"timestamp":1770616660000,"value":168.1},{"timestamp":1770616680000,"value":123.3},{"timestamp":1770616700000,"value":57.7},{"timestamp":1770616720000,"value":160.5},{"timestamp":1770616740000,"value":141.8},{"timestamp":1770616760000,"value":93.3},{"timestamp":1770616780000,"value":158},{"timestamp":1770616800000,"value":85},{"timestamp":1770616820000,"value":125.2},{"timestamp":1770616840000,"value":99.2},{"timestamp":1770616860000,"value":170.8},{"timestamp":1770616880000,"value":103},{"timestamp":1770616900000,"value":141.8},{"timestamp":1770616920000,"value":176.1},{"timestamp":1770616940000,"value":99.2},{"timestamp":1770616960000,"value":117.7},{"timestamp":1770616980000,"value":193.3},{"timestamp":1770617000000,"value":76.3},{"timestamp":1770617020000,"value":115.9},{"timestamp":1770617040000,"value":43.6},{"timestamp":1770617060000,"value":168.1},{"timestamp":1770617080000,"value":110.6},{"timestamp":1770617100000,"value":119.5},{"timestamp":1770617120000,"value":163},{"timestamp":1770617140000,"value":187.4},{"timestamp":1770617160000,"value":104},{"timestamp":1770617180000,"value":165.5},{"timestamp":1770617200000,"value":117.7},{"timestamp":1770617220000,"value":137.4},{"timestamp":1770617240000,"value":47.2},{"timestamp":1770617260000,"value":165.5},{"timestamp":1770617280000,"value":148.5},{"timestamp":1770617300000,"value":322.4},{"timestamp":1770617320000,"value":215.5},{"timestamp":1770617340000,"value":121.4},{"timestamp":1770617360000,"value":163},{"timestamp":1770617380000,"value":187.4},{"timestamp":1770617400000,"value":81.1},{"timestamp":1770617420000,"value":79.9},{"timestamp":1770617440000,"value":176.1},{"timestamp":1770617460000,"value":176.1},{"timestamp":1770617480000,"value":82.4},{"timestamp":1770617500000,"value":158},{"timestamp":1770617520000,"value":337.8},{"timestamp":1770617540000,"value":76.3},{"timestamp":1770617560000,"value":108.9},{"timestamp":1770617580000,"value":247.7},{"timestamp":1770617600000,"value":39.1},{"timestamp":1770617620000,"value":47.9},{"timestamp":1770617640000,"value":173.4},{"timestamp":1770617660000,"value":104},{"timestamp":1770617680000,"value":68.4},{"timestamp":1770617700000,"value":170.8},{"timestamp":1770617720000,"value":218.8},{"timestamp":1770617740000,"value":78.7},{"timestamp":1770617760000,"value":73.9},{"timestamp":1770617780000,"value":170.8},{"timestamp":1770617800000,"value":75.1},{"timestamp":1770617820000,"value":107.2},{"timestamp":1770617840000,"value":168.1},{"timestamp":1770617860000,"value":93.3},{"timestamp":1770617880000,"value":43},{"timestamp":1770617900000,"value":181.7},{"timestamp":1770617920000,"value":49.4},{"timestamp":1770617940000,"value":93.3},{"timestamp":1770617960000,"value":55.9},{"timestamp":1770617980000,"value":163},{"timestamp":1770618000000,"value":49.4},{"timestamp":1770618020000,"value":75.1},{"timestamp":1770618040000,"value":160.5},{"timestamp":1770618060000,"value":99.2},{"timestamp":1770618080000,"value":47.2},{"timestamp":1770618100000,"value":158},{"timestamp":1770618120000,"value":16},{"timestamp":1770618140000,"value":39.4},{"timestamp":1770618160000,"value":181.7},{"timestamp":1770618180000,"value":57.7},{"timestamp":1770618200000,"value":41.1},{"timestamp":1770618220000,"value":41.9},{"timestamp":1770618240000,"value":168.1},{"timestamp":1770618260000,"value":42.3},{"timestamp":1770618280000,"value":73.9},{"timestamp":1770618300000,"value":165.5},{"timestamp":1770618320000,"value":216},{"timestamp":1770618340000,"value":160},{"timestamp":1770618360000,"value":180.4},{"timestamp":1770618380000,"value":285.7},{"timestamp":1770618400000,"value":328.7},{"timestamp":1770618420000,"value":258.5},{"timestamp":1770618440000,"value":291.5},{"timestamp":1770618460000,"value":702.8},{"timestamp":1770618480000,"value":269.1},{"timestamp":1770618500000,"value":259.5},{"timestamp":1770618520000,"value":303.4},{"timestamp":1770618540000,"value":258.5},{"timestamp":1770618560000,"value":280.1},{"timestamp":1770618580000,"value":253.4},{"timestamp":1770618600000,"value":274.5},{"timestamp":1770618620000,"value":349},{"timestamp":1770618640000,"value":263.8},{"timestamp":1770618660000,"value":335.3},{"timestamp":1770618680000,"value":253.4},{"timestamp":1770618700000,"value":248.4},{"timestamp":1770618720000,"value":248.4},{"timestamp":1770618740000,"value":258.5},{"timestamp":1770618760000,"value":263.8},{"timestamp":1770618780000,"value":269.1},{"timestamp":1770618800000,"value":263.8},{"timestamp":1770618820000,"value":274.5},{"timestamp":1770618840000,"value":276.1},{"timestamp":1770618860000,"value":263.8},{"timestamp":1770618880000,"value":291.5},{"timestamp":1770618900000,"value":276.1},{"timestamp":1770618920000,"value":269.1},{"timestamp":1770618940000,"value":269.1},{"timestamp":1770618960000,"value":731.5},{"timestamp":1770618980000,"value":271.9},{"timestamp":1770619000000,"value":269.1},{"timestamp":1770619020000,"value":274.5},{"timestamp":1770619040000,"value":258.5},{"timestamp":1770619060000,"value":363.3},{"timestamp":1770619080000,"value":269.1},{"timestamp":1770619100000,"value":285.7},{"timestamp":1770619120000,"value":269.1},{"timestamp":1770619140000,"value":280.1},{"timestamp":1770619160000,"value":370.6},{"timestamp":1770619180000,"value":269.1},{"timestamp":1770619200000,"value":322.2},{"timestamp":1770619220000,"value":269.1},{"timestamp":1770619240000,"value":267.7},{"timestamp":1770619260000,"value":263.8},{"timestamp":1770619280000,"value":280.1},{"timestamp":1770619300000,"value":263.8},{"timestamp":1770619320000,"value":356.1},{"timestamp":1770619340000,"value":322.2},{"timestamp":1770619360000,"value":269.1},{"timestamp":1770619380000,"value":298.4},{"timestamp":1770619400000,"value":328.7},{"timestamp":1770619420000,"value":263.8},{"timestamp":1770619440000,"value":269.1},{"timestamp":1770619460000,"value":280.1},{"timestamp":1770619480000,"value":269.1},{"timestamp":1770619500000,"value":263.8},{"timestamp":1770619520000,"value":303.4},{"timestamp":1770619540000,"value":356.1},{"timestamp":1770619560000,"value":274.5},{"timestamp":1770619580000,"value":271.9},{"timestamp":1770619600000,"value":285.7},{"timestamp":1770619620000,"value":285.7},{"timestamp":1770619640000,"value":259.5},{"timestamp":1770619660000,"value":274.5},{"timestamp":1770619680000,"value":315.8},{"timestamp":1770619700000,"value":269.1},{"timestamp":1770619720000,"value":269.1}],"post_/v1/threads/_threadid_:chat":[{"timestamp":1770616160000,"value":18310.4},{"timestamp":1770616200000,"value":23277.3},{"timestamp":1770616240000,"value":92498.5},{"timestamp":1770616260000,"value":10232.8},{"timestamp":1770616300000,"value":7594.6},{"timestamp":1770616320000,"value":14845.5},{"timestamp":1770616340000,"value":8109.5},{"timestamp":1770616360000,"value":8763.2},{"timestamp":1770616380000,"value":16567.9},{"timestamp":1770616400000,"value":21921.7},{"timestamp":1770616420000,"value":18444.3},{"timestamp":1770616440000,"value":7621.8},{"timestamp":1770616460000,"value":11330},{"timestamp":1770616480000,"value":10075.4},{"timestamp":1770616500000,"value":9617.5},{"timestamp":1770616540000,"value":16292.8},{"timestamp":1770616560000,"value":7010.7},{"timestamp":1770616620000,"value":65858.9},{"timestamp":1770616660000,"value":7594.6},{"timestamp":1770616680000,"value":98251.2},{"timestamp":1770616700000,"value":13838.6},{"timestamp":1770616720000,"value":10048.8},{"timestamp":1770616760000,"value":9849.8},{"timestamp":1770616780000,"value":8109.5},{"timestamp":1770616800000,"value":13318.7},{"timestamp":1770616820000,"value":7444.2},{"timestamp":1770616860000,"value":12325.2},{"timestamp":1770616880000,"value":10392.7},{"timestamp":1770616900000,"value":42605.5},{"timestamp":1770616940000,"value":23277.3},{"timestamp":1770616960000,"value":50780.2},{"timestamp":1770617000000,"value":15918.3},{"timestamp":1770617040000,"value":8628.3},{"timestamp":1770617060000,"value":44634},{"timestamp":1770617080000,"value":7984.7},{"timestamp":1770617100000,"value":9180.4},{"timestamp":1770617120000,"value":29005.6},{"timestamp":1770617160000,"value":6735.8},{"timestamp":1770617180000,"value":19442.7},{"timestamp":1770617200000,"value":32056.2},{"timestamp":1770617240000,"value":19835.5},{"timestamp":1770617260000,"value":48985.3},{"timestamp":1770617300000,"value":12030.7},{"timestamp":1770617320000,"value":45037.8},{"timestamp":1770617360000,"value":23747.6},{"timestamp":1770617400000,"value":14694.4},{"timestamp":1770617420000,"value":36873.6},{"timestamp":1770617440000,"value":7621.8},{"timestamp":1770617460000,"value":6602.4},{"timestamp":1770617480000,"value":7296.8},{"timestamp":1770617540000,"value":16805.9},{"timestamp":1770617560000,"value":21062.1},{"timestamp":1770617580000,"value":25542.5},{"timestamp":1770617640000,"value":62023.5},{"timestamp":1770617660000,"value":6735.8},{"timestamp":1770617680000,"value":19442.7},{"timestamp":1770617700000,"value":11558.9},{"timestamp":1770617720000,"value":7444.2},{"timestamp":1770617740000,"value":8064.3},{"timestamp":1770617760000,"value":15918.3},{"timestamp":1770617800000,"value":38378.5},{"timestamp":1770617820000,"value":8064.3},{"timestamp":1770617840000,"value":10885.7},{"timestamp":1770617860000,"value":7594.6},{"timestamp":1770617880000,"value":49774.6},{"timestamp":1770617920000,"value":11105.7},{"timestamp":1770617980000,"value":11330},{"timestamp":1770618020000,"value":85415.1},{"timestamp":1770618040000,"value":13032.7},{"timestamp":1770618100000,"value":15603.1},{"timestamp":1770618120000,"value":13032.7},{"timestamp":1770618140000,"value":25216.1},{"timestamp":1770618320000,"value":17592.5}]};
+            const rateTimeSeries = {"post_/v1/threads/_threadid_:retry":[{"timestamp":1770616200000,"value":0.05},{"timestamp":1770616560000,"value":0.05},{"timestamp":1770616580000,"value":0.05},{"timestamp":1770616600000,"value":0.1},{"timestamp":1770616620000,"value":0.05},{"timestamp":1770616640000,"value":0.05},{"timestamp":1770616660000,"value":0.1},{"timestamp":1770616680000,"value":0.05},{"timestamp":1770616700000,"value":0.05},{"timestamp":1770616720000,"value":0.1},{"timestamp":1770616740000,"value":0.05},{"timestamp":1770616760000,"value":0.05},{"timestamp":1770616780000,"value":0.05},{"timestamp":1770616800000,"value":0.1},{"timestamp":1770616820000,"value":0.05},{"timestamp":1770616840000,"value":0.05},{"timestamp":1770616860000,"value":0.1},{"timestamp":1770616880000,"value":0.05},{"timestamp":1770616900000,"value":0.05},{"timestamp":1770616920000,"value":0.1},{"timestamp":1770616940000,"value":0.05},{"timestamp":1770616960000,"value":0.05},{"timestamp":1770616980000,"value":0.1},{"timestamp":1770617000000,"value":0.05},{"timestamp":1770617020000,"value":0.05},{"timestamp":1770617040000,"value":0.05},{"timestamp":1770617060000,"value":0.1},{"timestamp":1770617080000,"value":0.05},{"timestamp":1770617100000,"value":0.05},{"timestamp":1770617120000,"value":0.1},{"timestamp":1770617140000,"value":0.05},{"timestamp":1770617160000,"value":0.05},{"timestamp":1770617180000,"value":0.1},{"timestamp":1770617200000,"value":0.05},{"timestamp":1770617220000,"value":0.05},{"timestamp":1770617240000,"value":0.05},{"timestamp":1770617260000,"value":0.1},{"timestamp":1770617280000,"value":0.05},{"timestamp":1770617300000,"value":0.05},{"timestamp":1770617320000,"value":0.1},{"timestamp":1770617340000,"value":0.05},{"timestamp":1770617360000,"value":0.05},{"timestamp":1770617380000,"value":0.1},{"timestamp":1770617400000,"value":0.05},{"timestamp":1770617420000,"value":0.05},{"timestamp":1770617440000,"value":0.1},{"timestamp":1770617460000,"value":0.05},{"timestamp":1770617480000,"value":0.05},{"timestamp":1770617500000,"value":0.05},{"timestamp":1770617520000,"value":0.1},{"timestamp":1770617540000,"value":0.05},{"timestamp":1770617560000,"value":0.05},{"timestamp":1770617580000,"value":0.1},{"timestamp":1770617600000,"value":0.05},{"timestamp":1770617620000,"value":0.05},{"timestamp":1770617640000,"value":0.1},{"timestamp":1770617660000,"value":0.05},{"timestamp":1770617680000,"value":0.05},{"timestamp":1770617700000,"value":0.05},{"timestamp":1770617720000,"value":0.1},{"timestamp":1770617740000,"value":0.05},{"timestamp":1770617760000,"value":0.05},{"timestamp":1770617780000,"value":0.1},{"timestamp":1770617800000,"value":0.05},{"timestamp":1770617820000,"value":0.05},{"timestamp":1770617840000,"value":0.1},{"timestamp":1770617860000,"value":0.05},{"timestamp":1770617880000,"value":0.05},{"timestamp":1770617900000,"value":0.1},{"timestamp":1770617920000,"value":0.05},{"timestamp":1770617940000,"value":0.05},{"timestamp":1770617960000,"value":0.05},{"timestamp":1770617980000,"value":0.1},{"timestamp":1770618000000,"value":0.05},{"timestamp":1770618020000,"value":0.05},{"timestamp":1770618040000,"value":0.1},{"timestamp":1770618060000,"value":0.05},{"timestamp":1770618080000,"value":0.05},{"timestamp":1770618100000,"value":0.1},{"timestamp":1770618120000,"value":0.05},{"timestamp":1770618140000,"value":0.05},{"timestamp":1770618160000,"value":0.1},{"timestamp":1770618180000,"value":0.05},{"timestamp":1770618200000,"value":0.05},{"timestamp":1770618220000,"value":0.05},{"timestamp":1770618240000,"value":0.1},{"timestamp":1770618260000,"value":0.05},{"timestamp":1770618280000,"value":0.05},{"timestamp":1770618300000,"value":0.1},{"timestamp":1770618320000,"value":0.05},{"timestamp":1770618340000,"value":0.05},{"timestamp":1770618360000,"value":0.1},{"timestamp":1770618380000,"value":0.05},{"timestamp":1770618400000,"value":0.05},{"timestamp":1770618420000,"value":0.05},{"timestamp":1770618440000,"value":0.1},{"timestamp":1770618460000,"value":0.05},{"timestamp":1770618480000,"value":0.05},{"timestamp":1770618500000,"value":0.1},{"timestamp":1770618520000,"value":0.05},{"timestamp":1770618540000,"value":0.05},{"timestamp":1770618560000,"value":0.1},{"timestamp":1770618580000,"value":0.05},{"timestamp":1770618600000,"value":0.05},{"timestamp":1770618620000,"value":0.05},{"timestamp":1770618640000,"value":0.1},{"timestamp":1770618660000,"value":0.05},{"timestamp":1770618680000,"value":0.05},{"timestamp":1770618700000,"value":0.1},{"timestamp":1770618720000,"value":0.05},{"timestamp":1770618740000,"value":0.05},{"timestamp":1770618760000,"value":0.1},{"timestamp":1770618780000,"value":0.05},{"timestamp":1770618800000,"value":0.05},{"timestamp":1770618820000,"value":0.05},{"timestamp":1770618840000,"value":0.1},{"timestamp":1770618860000,"value":0.05},{"timestamp":1770618880000,"value":0.05},{"timestamp":1770618900000,"value":0.1},{"timestamp":1770618920000,"value":0.05},{"timestamp":1770618940000,"value":0.05},{"timestamp":1770618960000,"value":0.05},{"timestamp":1770618980000,"value":0.1},{"timestamp":1770619000000,"value":0.05},{"timestamp":1770619020000,"value":0.05},{"timestamp":1770619040000,"value":0.1},{"timestamp":1770619060000,"value":0.05},{"timestamp":1770619080000,"value":0.05},{"timestamp":1770619100000,"value":0.1},{"timestamp":1770619120000,"value":0.05},{"timestamp":1770619140000,"value":0.05},{"timestamp":1770619160000,"value":0.05},{"timestamp":1770619180000,"value":0.1},{"timestamp":1770619200000,"value":0.05},{"timestamp":1770619220000,"value":0.05},{"timestamp":1770619240000,"value":0.1},{"timestamp":1770619260000,"value":0.05},{"timestamp":1770619280000,"value":0.05},{"timestamp":1770619300000,"value":0.1},{"timestamp":1770619320000,"value":0.05},{"timestamp":1770619340000,"value":0.05},{"timestamp":1770619360000,"value":0.05},{"timestamp":1770619380000,"value":0.1},{"timestamp":1770619400000,"value":0.05},{"timestamp":1770619420000,"value":0.05},{"timestamp":1770619440000,"value":0.1},{"timestamp":1770619460000,"value":0.05},{"timestamp":1770619480000,"value":0.05},{"timestamp":1770619500000,"value":0.1},{"timestamp":1770619520000,"value":0.05},{"timestamp":1770619540000,"value":0.05},{"timestamp":1770619560000,"value":0.05},{"timestamp":1770619580000,"value":0.1},{"timestamp":1770619600000,"value":0.05},{"timestamp":1770619620000,"value":0.05},{"timestamp":1770619640000,"value":0.1},{"timestamp":1770619660000,"value":0.05},{"timestamp":1770619680000,"value":0.05},{"timestamp":1770619700000,"value":0.1},{"timestamp":1770619720000,"value":0.05}],"get_/v1/threads":[{"timestamp":1770616140000,"value":0.5},{"timestamp":1770616180000,"value":0.05},{"timestamp":1770616220000,"value":0.15},{"timestamp":1770616240000,"value":0.1},{"timestamp":1770616260000,"value":0.2},{"timestamp":1770616280000,"value":0.35},{"timestamp":1770616300000,"value":0.15},{"timestamp":1770616320000,"value":0.1},{"timestamp":1770616340000,"value":0.3},{"timestamp":1770616360000,"value":0.2},{"timestamp":1770616380000,"value":0.15},{"timestamp":1770616400000,"value":0.3},{"timestamp":1770616420000,"value":0.15},{"timestamp":1770616440000,"value":0.2},{"timestamp":1770616460000,"value":0.2},{"timestamp":1770616480000,"value":0.2},{"timestamp":1770616500000,"value":0.25},{"timestamp":1770616520000,"value":0.3},{"timestamp":1770616540000,"value":0.25},{"timestamp":1770616560000,"value":0.25},{"timestamp":1770616580000,"value":0.2},{"timestamp":1770616600000,"value":0.2},{"timestamp":1770616620000,"value":0.3},{"timestamp":1770616640000,"value":0.2},{"timestamp":1770616660000,"value":0.25},{"timestamp":1770616680000,"value":0.35},{"timestamp":1770616700000,"value":0.1},{"timestamp":1770616720000,"value":0.35},{"timestamp":1770616740000,"value":0.3},{"timestamp":1770616760000,"value":0.25},{"timestamp":1770616780000,"value":0.25},{"timestamp":1770616800000,"value":0.2},{"timestamp":1770616820000,"value":0.2},{"timestamp":1770616840000,"value":0.2},{"timestamp":1770616860000,"value":0.2},{"timestamp":1770616880000,"value":0.1},{"timestamp":1770616900000,"value":0.15},{"timestamp":1770616920000,"value":0.3},{"timestamp":1770616940000,"value":0.1},{"timestamp":1770616960000,"value":0.3},{"timestamp":1770616980000,"value":0.3},{"timestamp":1770617000000,"value":0.25},{"timestamp":1770617020000,"value":0.25},{"timestamp":1770617040000,"value":0.1},{"timestamp":1770617060000,"value":0.25},{"timestamp":1770617080000,"value":0.25},{"timestamp":1770617100000,"value":0.15},{"timestamp":1770617120000,"value":0.35},{"timestamp":1770617140000,"value":0.3},{"timestamp":1770617160000,"value":0.1},{"timestamp":1770617180000,"value":0.15},{"timestamp":1770617200000,"value":0.1},{"timestamp":1770617220000,"value":0.15},{"timestamp":1770617240000,"value":0.1},{"timestamp":1770617260000,"value":0.2},{"timestamp":1770617280000,"value":0.25},{"timestamp":1770617300000,"value":0.2},{"timestamp":1770617320000,"value":0.3},{"timestamp":1770617340000,"value":0.25},{"timestamp":1770617360000,"value":0.35},{"timestamp":1770617380000,"value":0.25},{"timestamp":1770617400000,"value":0.15},{"timestamp":1770617420000,"value":0.2},{"timestamp":1770617440000,"value":0.3},{"timestamp":1770617460000,"value":0.3},{"timestamp":1770617480000,"value":0.15},{"timestamp":1770617500000,"value":0.3},{"timestamp":1770617520000,"value":0.2},{"timestamp":1770617540000,"value":0.1},{"timestamp":1770617560000,"value":0.15},{"timestamp":1770617580000,"value":0.15},{"timestamp":1770617600000,"value":0.15},{"timestamp":1770617620000,"value":0.15},{"timestamp":1770617640000,"value":0.2},{"timestamp":1770617660000,"value":0.15},{"timestamp":1770617680000,"value":0.15},{"timestamp":1770617700000,"value":0.25},{"timestamp":1770617720000,"value":0.25},{"timestamp":1770617740000,"value":0.15},{"timestamp":1770617760000,"value":0.15},{"timestamp":1770617780000,"value":0.2},{"timestamp":1770617800000,"value":0.15},{"timestamp":1770617820000,"value":0.1},{"timestamp":1770617840000,"value":0.2},{"timestamp":1770617860000,"value":0.2},{"timestamp":1770617880000,"value":0.2},{"timestamp":1770617900000,"value":0.25},{"timestamp":1770617920000,"value":0.35},{"timestamp":1770617940000,"value":0.2},{"timestamp":1770617960000,"value":0.15},{"timestamp":1770617980000,"value":0.25},{"timestamp":1770618000000,"value":0.15},{"timestamp":1770618020000,"value":0.15},{"timestamp":1770618040000,"value":0.3},{"timestamp":1770618060000,"value":0.2},{"timestamp":1770618080000,"value":0.25},{"timestamp":1770618100000,"value":0.3},{"timestamp":1770618120000,"value":0.1},{"timestamp":1770618140000,"value":0.1},{"timestamp":1770618160000,"value":0.15},{"timestamp":1770618180000,"value":0.15},{"timestamp":1770618200000,"value":0.1},{"timestamp":1770618220000,"value":0.1},{"timestamp":1770618240000,"value":0.15},{"timestamp":1770618260000,"value":0.15},{"timestamp":1770618280000,"value":0.1},{"timestamp":1770618300000,"value":0.15},{"timestamp":1770618320000,"value":0.05},{"timestamp":1770618340000,"value":0.05},{"timestamp":1770618360000,"value":0.1},{"timestamp":1770618380000,"value":0.05},{"timestamp":1770618400000,"value":0.05},{"timestamp":1770618420000,"value":0.1},{"timestamp":1770618440000,"value":0.05},{"timestamp":1770618460000,"value":0.05},{"timestamp":1770618480000,"value":0.05},{"timestamp":1770618500000,"value":0.1},{"timestamp":1770618520000,"value":0.05},{"timestamp":1770618540000,"value":0.05},{"timestamp":1770618560000,"value":0.1},{"timestamp":1770618580000,"value":0.05},{"timestamp":1770618600000,"value":0.05},{"timestamp":1770618620000,"value":0.05},{"timestamp":1770618640000,"value":0.1},{"timestamp":1770618660000,"value":0.05},{"timestamp":1770618680000,"value":0.05},{"timestamp":1770618700000,"value":0.1},{"timestamp":1770618720000,"value":0.05},{"timestamp":1770618740000,"value":0.05},{"timestamp":1770618760000,"value":0.1},{"timestamp":1770618780000,"value":0.05},{"timestamp":1770618800000,"value":0.05},{"timestamp":1770618820000,"value":0.05},{"timestamp":1770618840000,"value":0.15},{"timestamp":1770618860000,"value":0.05},{"timestamp":1770618880000,"value":0.05},{"timestamp":1770618900000,"value":0.1},{"timestamp":1770618920000,"value":0.05},{"timestamp":1770618940000,"value":0.05},{"timestamp":1770618960000,"value":0.05},{"timestamp":1770618980000,"value":0.1},{"timestamp":1770619000000,"value":0.05},{"timestamp":1770619020000,"value":0.05},{"timestamp":1770619040000,"value":0.1},{"timestamp":1770619060000,"value":0.05},{"timestamp":1770619080000,"value":0.05},{"timestamp":1770619100000,"value":0.1},{"timestamp":1770619120000,"value":0.05},{"timestamp":1770619140000,"value":0.05},{"timestamp":1770619160000,"value":0.05},{"timestamp":1770619180000,"value":0.1},{"timestamp":1770619200000,"value":0.05},{"timestamp":1770619220000,"value":0.05},{"timestamp":1770619240000,"value":0.1},{"timestamp":1770619260000,"value":0.05},{"timestamp":1770619280000,"value":0.05},{"timestamp":1770619300000,"value":0.1},{"timestamp":1770619320000,"value":0.05},{"timestamp":1770619340000,"value":0.05},{"timestamp":1770619360000,"value":0.05},{"timestamp":1770619380000,"value":0.1},{"timestamp":1770619400000,"value":0.05},{"timestamp":1770619420000,"value":0.05},{"timestamp":1770619440000,"value":0.1},{"timestamp":1770619460000,"value":0.05},{"timestamp":1770619480000,"value":0.05},{"timestamp":1770619500000,"value":0.1},{"timestamp":1770619520000,"value":0.05},{"timestamp":1770619540000,"value":0.05},{"timestamp":1770619560000,"value":0.05},{"timestamp":1770619580000,"value":0.1},{"timestamp":1770619600000,"value":0.05},{"timestamp":1770619620000,"value":0.05},{"timestamp":1770619640000,"value":0.1},{"timestamp":1770619660000,"value":0.05},{"timestamp":1770619680000,"value":0.05},{"timestamp":1770619700000,"value":0.1},{"timestamp":1770619720000,"value":0.05}],"post_/v1/threads/_threadid_:chat":[{"timestamp":1770616160000,"value":0.05},{"timestamp":1770616200000,"value":0.1},{"timestamp":1770616240000,"value":0.15},{"timestamp":1770616260000,"value":0.15},{"timestamp":1770616300000,"value":0.1},{"timestamp":1770616320000,"value":0.15},{"timestamp":1770616340000,"value":0.1},{"timestamp":1770616360000,"value":0.1},{"timestamp":1770616380000,"value":0.1},{"timestamp":1770616400000,"value":0.05},{"timestamp":1770616420000,"value":0.1},{"timestamp":1770616440000,"value":0.2},{"timestamp":1770616460000,"value":0.1},{"timestamp":1770616480000,"value":0.1},{"timestamp":1770616500000,"value":0.15},{"timestamp":1770616540000,"value":0.1},{"timestamp":1770616560000,"value":0.1},{"timestamp":1770616620000,"value":0.05},{"timestamp":1770616660000,"value":0.05},{"timestamp":1770616680000,"value":0.05},{"timestamp":1770616700000,"value":0.1},{"timestamp":1770616720000,"value":0.1},{"timestamp":1770616760000,"value":0.05},{"timestamp":1770616780000,"value":0.1},{"timestamp":1770616800000,"value":0.15},{"timestamp":1770616820000,"value":0.05},{"timestamp":1770616860000,"value":0.1},{"timestamp":1770616880000,"value":0.1},{"timestamp":1770616900000,"value":0.2},{"timestamp":1770616940000,"value":0.1},{"timestamp":1770616960000,"value":0.05},{"timestamp":1770617000000,"value":0.05},{"timestamp":1770617040000,"value":0.1},{"timestamp":1770617060000,"value":0.1},{"timestamp":1770617080000,"value":0.1},{"timestamp":1770617100000,"value":0.1},{"timestamp":1770617120000,"value":0.05},{"timestamp":1770617160000,"value":0.1},{"timestamp":1770617180000,"value":0.05},{"timestamp":1770617200000,"value":0.1},{"timestamp":1770617240000,"value":0.05},{"timestamp":1770617260000,"value":0.15},{"timestamp":1770617300000,"value":0.1},{"timestamp":1770617320000,"value":0.05},{"timestamp":1770617360000,"value":0.05},{"timestamp":1770617400000,"value":0.05},{"timestamp":1770617420000,"value":0.05},{"timestamp":1770617440000,"value":0.1},{"timestamp":1770617460000,"value":0.05},{"timestamp":1770617480000,"value":0.05},{"timestamp":1770617540000,"value":0.1},{"timestamp":1770617560000,"value":0.05},{"timestamp":1770617580000,"value":0.1},{"timestamp":1770617640000,"value":0.05},{"timestamp":1770617660000,"value":0.1},{"timestamp":1770617680000,"value":0.05},{"timestamp":1770617700000,"value":0.05},{"timestamp":1770617720000,"value":0.1},{"timestamp":1770617740000,"value":0.05},{"timestamp":1770617760000,"value":0.1},{"timestamp":1770617800000,"value":0.05},{"timestamp":1770617820000,"value":0.1},{"timestamp":1770617840000,"value":0.05},{"timestamp":1770617860000,"value":0.05},{"timestamp":1770617880000,"value":0.05},{"timestamp":1770617920000,"value":0.05},{"timestamp":1770617980000,"value":0.05},{"timestamp":1770618020000,"value":0.05},{"timestamp":1770618040000,"value":0.05},{"timestamp":1770618100000,"value":0.05},{"timestamp":1770618120000,"value":0.05},{"timestamp":1770618140000,"value":0.05},{"timestamp":1770618320000,"value":0.05}]};
+            
+            const p95Data = timeSeries[endpoint] || [];
+            const rateData = rateTimeSeries[endpoint] || [];
+            
+            const color = colors[index % colors.length];
+            
+            // Rate chart
+            if (rateData.length > 0) {
+                const rateCtx = document.getElementById('rateChart-' + index).getContext('2d');
+                new Chart(rateCtx, {
+                    type: 'line',
+                    data: {
+                        datasets: [{
+                            label: 'Request Rate (hits/s)',
+                            data: rateData.map(p => ({ x: p.timestamp, y: p.value })),
+                            borderColor: '#E8871E',
+                            backgroundColor: 'rgba(232, 135, 30, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 1,
+                            pointHoverRadius: 5,
+                            fill: true,
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(0,0,0,0.9)',
+                                callbacks: {
+                                    label: function(context) {
+                                        return 'Rate: ' + context.parsed.y.toFixed(2) + ' hits/s';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: { unit: 'minute', displayFormats: { minute: 'HH:mm' } },
+                                title: { display: true, text: 'Time' },
+                                grid: { color: 'rgba(0,0,0,0.05)' }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: 'Request Rate (hits/s)' },
+                                grid: { color: 'rgba(0,0,0,0.05)' }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // P95 chart
+            const p95Ctx = document.getElementById('p95Chart-' + index).getContext('2d');
+            new Chart(p95Ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'P95 Latency (ms)',
+                        data: p95Data.map(p => ({ x: p.timestamp, y: p.value })),
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        borderWidth: 2,
+                        pointRadius: 1,
+                        pointHoverRadius: 5,
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.9)',
+                            callbacks: {
+                                label: function(context) {
+                                    return 'P95: ' + context.parsed.y.toFixed(1) + ' ms';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: { unit: 'minute', displayFormats: { minute: 'HH:mm' } },
+                            title: { display: true, text: 'Time' },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'P95 Latency (ms)' },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
