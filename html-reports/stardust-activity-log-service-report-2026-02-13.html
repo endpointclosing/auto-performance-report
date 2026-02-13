@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>stardust-activity-log-service - Interactive Performance Report</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f6f7;
+            padding: 20px;
+            color: #172B4D;
+        }
+        .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px 8px 0 0;
+        }
+        .header h1 { font-size: 28px; margin-bottom: 10px; }
+        .header p { opacity: 0.9; font-size: 14px; }
+        .content { padding: 30px; }
+        .section { margin-bottom: 40px; }
+        .section h2 { 
+            font-size: 20px; 
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #E8E8E8;
+            color: #172B4D;
+        }
+        .chart-container { 
+            position: relative; 
+            height: 400px;
+            margin-bottom: 30px;
+            background: #fafbfc;
+            padding: 20px;
+            border-radius: 6px;
+            border: 1px solid #e8e8e8;
+        }
+        .endpoint-section {
+            margin-bottom: 30px;
+            border: 1px solid #e8e8e8;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .endpoint-header {
+            background: #f4f5f7;
+            padding: 15px 20px;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        .endpoint-header:hover { background: #ebecf0; }
+        .endpoint-header h3 { font-size: 16px; color: #172B4D; }
+        .endpoint-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+            color: #5E6C84;
+        }
+        .endpoint-stats span { font-weight: 600; color: #172B4D; }
+        .endpoint-content {
+            padding: 20px;
+            display: none;
+        }
+        .endpoint-content.active { display: block; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: #f4f5f7;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 3px solid #0052CC;
+        }
+        .stat-card label { 
+            display: block;
+            font-size: 12px;
+            color: #5E6C84;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-card value { 
+            display: block;
+            font-size: 20px;
+            font-weight: 600;
+            color: #172B4D;
+        }
+        .chart-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .chart-box {
+            position: relative;
+            height: 300px;
+            background: #fafbfc;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e8e8e8;
+        }
+        .chart-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #172B4D;
+            margin-bottom: 10px;
+        }
+        .toggle-icon {
+            font-size: 20px;
+            transition: transform 0.3s;
+        }
+        .toggle-icon.active { transform: rotate(180deg); }
+        @media (max-width: 768px) {
+            .chart-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 stardust-activity-log-service - Performance Report</h1>
+            <p>📅 Feb 3, 12:33 am – Feb 3, 12:36 am</p>
+            <p>🌐 Environment: Staging</p>
+        </div>
+        
+        <div class="content">
+            <!-- Combined Timeline Chart Section -->
+            <div class="section">
+                <h2>📈 Performance Timeline</h2>
+                <p style="color: #5E6C84; margin-bottom: 20px; font-size: 14px;">
+                    Request rate and response time trends over time.
+                </p>
+                <div class="chart-container">
+                    <canvas id="combinedChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Individual Endpoints -->
+            <div class="section">
+                <h2>📈 Individual Endpoint Analysis</h2>
+                <p style="color: #5E6C84; margin-bottom: 20px; font-size: 14px;">
+                    Click on any endpoint to expand and view interactive Rate and P95 time series charts
+                </p>
+
+                <div class="endpoint-section">
+                    <div class="endpoint-header" onclick="toggleEndpoint(0)">
+                        <div>
+                            <h3>1. get /api/v1/activity-logs/:eventid</h3>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 30px;">
+                            <div class="endpoint-stats">
+                                <div>Rate: <span>0.28 req/s</span></div>
+                                <div>P95: <span>7.8 ms</span></div>
+                                <div>Requests: <span>50</span></div>
+                            </div>
+                            <span class="toggle-icon" id="toggle-0">▼</span>
+                        </div>
+                    </div>
+                    <div class="endpoint-content" id="content-0">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <label>Request Rate</label>
+                                <value>0.28 hits/s</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>Total Requests</label>
+                                <value>50</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P95 Latency</label>
+                                <value>7.8 ms</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P99 Latency</label>
+                                <value>7.8 ms</value>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-row">
+                            <div class="chart-box">
+                                <div class="chart-title">📊 Request Rate Over Time</div>
+                                <canvas id="rateChart-0"></canvas>
+                            </div>
+                            <div class="chart-box">
+                                <div class="chart-title">📈 P95 Latency Over Time</div>
+                                <canvas id="p95Chart-0"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    
+                <div class="endpoint-section">
+                    <div class="endpoint-header" onclick="toggleEndpoint(1)">
+                        <div>
+                            <h3>2. get /api/v1/activity-logs/transactions/:transactionid/actors</h3>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 30px;">
+                            <div class="endpoint-stats">
+                                <div>Rate: <span>0.28 req/s</span></div>
+                                <div>P95: <span>382.4 ms</span></div>
+                                <div>Requests: <span>50</span></div>
+                            </div>
+                            <span class="toggle-icon" id="toggle-1">▼</span>
+                        </div>
+                    </div>
+                    <div class="endpoint-content" id="content-1">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <label>Request Rate</label>
+                                <value>0.28 hits/s</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>Total Requests</label>
+                                <value>50</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P95 Latency</label>
+                                <value>382.4 ms</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P99 Latency</label>
+                                <value>382.4 ms</value>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-row">
+                            <div class="chart-box">
+                                <div class="chart-title">📊 Request Rate Over Time</div>
+                                <canvas id="rateChart-1"></canvas>
+                            </div>
+                            <div class="chart-box">
+                                <div class="chart-title">📈 P95 Latency Over Time</div>
+                                <canvas id="p95Chart-1"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    
+                <div class="endpoint-section">
+                    <div class="endpoint-header" onclick="toggleEndpoint(2)">
+                        <div>
+                            <h3>3. get /api/v1/activity-logs</h3>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 30px;">
+                            <div class="endpoint-stats">
+                                <div>Rate: <span>0.28 req/s</span></div>
+                                <div>P95: <span>637.9 ms</span></div>
+                                <div>Requests: <span>50</span></div>
+                            </div>
+                            <span class="toggle-icon" id="toggle-2">▼</span>
+                        </div>
+                    </div>
+                    <div class="endpoint-content" id="content-2">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <label>Request Rate</label>
+                                <value>0.28 hits/s</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>Total Requests</label>
+                                <value>50</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P95 Latency</label>
+                                <value>637.9 ms</value>
+                            </div>
+                            <div class="stat-card">
+                                <label>P99 Latency</label>
+                                <value>637.9 ms</value>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-row">
+                            <div class="chart-box">
+                                <div class="chart-title">📊 Request Rate Over Time</div>
+                                <canvas id="rateChart-2"></canvas>
+                            </div>
+                            <div class="chart-box">
+                                <div class="chart-title">📈 P95 Latency Over Time</div>
+                                <canvas id="p95Chart-2"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Toggle endpoint sections
+        function toggleEndpoint(index) {
+            const content = document.getElementById('content-' + index);
+            const icon = document.getElementById('toggle-' + index);
+            
+            if (content.classList.contains('active')) {
+                content.classList.remove('active');
+                icon.classList.remove('active');
+            } else {
+                content.classList.add('active');
+                icon.classList.add('active');
+                
+                // Initialize charts when opened for the first time
+                if (!content.dataset.initialized) {
+                    initializeEndpointCharts(index);
+                    content.dataset.initialized = 'true';
+                }
+            }
+        }
+        
+        const colors = ["#632CA6","#F84D8C","#19A974","#E8871E","#3D4EB8","#C93854","#137CBD","#00BF87","#DB3737","#8F398F"];
+        
+        // Use REAL time series data from JSON file
+        const startTime = new Date('2026-02-03T00:33:00');
+        const endTime = new Date('2026-02-03T00:36:00');
+        
+        // Load actual time series data from JSON
+        const timeSeriesData = {"get_/api/v1/activity-logs/:eventid":[{"timestamp":1770059070000,"value":6.1},{"timestamp":1770059080000,"value":6.4},{"timestamp":1770059090000,"value":5.4},{"timestamp":1770059100000,"value":6.6},{"timestamp":1770059110000,"value":7.8},{"timestamp":1770059120000,"value":5.4}],"get_/api/v1/activity-logs/transactions/:transactionid/actors":[{"timestamp":1770059070000,"value":382.4},{"timestamp":1770059080000,"value":240.2},{"timestamp":1770059090000,"value":196.3},{"timestamp":1770059100000,"value":137.4},{"timestamp":1770059110000,"value":9.1},{"timestamp":1770059120000,"value":7.2}],"get_/api/v1/activity-logs":[{"timestamp":1770059070000,"value":255.5},{"timestamp":1770059080000,"value":637.9},{"timestamp":1770059090000,"value":173.4},{"timestamp":1770059100000,"value":232.8},{"timestamp":1770059110000,"value":66.3},{"timestamp":1770059120000,"value":26.2}]};
+        const rateTimeSeriesData = {"get_/api/v1/activity-logs/:eventid":[{"timestamp":1770059070000,"value":0.3},{"timestamp":1770059080000,"value":0.8},{"timestamp":1770059090000,"value":1.1},{"timestamp":1770059100000,"value":1.2},{"timestamp":1770059110000,"value":1.1},{"timestamp":1770059120000,"value":0.5}],"get_/api/v1/activity-logs/transactions/:transactionid/actors":[{"timestamp":1770059070000,"value":0.4},{"timestamp":1770059080000,"value":0.9},{"timestamp":1770059090000,"value":1},{"timestamp":1770059100000,"value":1.3},{"timestamp":1770059110000,"value":1.1},{"timestamp":1770059120000,"value":0.3}],"get_/api/v1/activity-logs":[{"timestamp":1770059070000,"value":0.4},{"timestamp":1770059080000,"value":0.9},{"timestamp":1770059090000,"value":0.9},{"timestamp":1770059100000,"value":1.4},{"timestamp":1770059110000,"value":1.1},{"timestamp":1770059120000,"value":0.3}]};
+        const serviceMetrics = {"p95_service":{"status":"ok","res_type":"time_series","resp_version":1,"query":"p95:trace.express.request{service:stardust-activity-log-service,env:staging}","from_date":1770058980000,"to_date":1770059160000,"series":[{"aggr":"p95","attributes":{},"display_name":"trace.express.request","end":1770059120000,"expression":"p95:trace.express.request{env:staging,service:stardust-activity-log-service}","interval":1,"length":6,"metric":"trace.express.request","pointlist":[[1770059070000,0.3823994208177705],[1770059080000,0.33779262587838316],[1770059090000,0.19632778710264293],[1770059100000,0.2328353839982968],[1770059110000,0.0652997626477167],[1770059120000,0.026160258181304786]],"query_index":0,"scope":"env:staging,service:stardust-activity-log-service","start":1770059070000,"tag_set":[],"unit":[{"family":"time","name":"second","plural":"seconds","scale_factor":1,"short_name":"s","id":11},null]}],"values":[],"times":[],"message":"","group_by":[]},"rate_service":{"status":"ok","res_type":"time_series","resp_version":1,"query":"autosmooth(sum:trace.express.request.hits{env:staging,service:stardust-activity-log-service}.as_rate())","from_date":1770058980000,"to_date":1770059160000,"series":[{"aggr":"sum","attributes":{"smoothing_window":[1]},"display_name":"autosmooth(trace.express.request.hits)","end":1770059159000,"expression":"autosmooth(sum:trace.express.request.hits{env:staging,service:stardust-activity-log-service}.as_rate())","interval":10,"length":18,"metric":"autosmooth(trace.express.request.hits)","pointlist":[[1770058980000,0],[1770058990000,0],[1770059000000,0],[1770059010000,0],[1770059020000,0],[1770059030000,0],[1770059040000,0],[1770059050000,0],[1770059060000,0],[1770059070000,1.1],[1770059080000,2.6000000000000005],[1770059090000,3],[1770059100000,3.9000000000000004],[1770059110000,3.3000000000000007],[1770059120000,1.0999999999999996],[1770059130000,0],[1770059140000,0],[1770059150000,0]],"query_index":0,"scope":"env:staging,service:stardust-activity-log-service","start":1770058980000,"tag_set":[],"unit":[{"family":"cache","name":"hit","plural":"hits","scale_factor":1,"short_name":"","id":39},{"family":"time","name":"second","plural":"seconds","scale_factor":1,"short_name":"s","id":11}]}],"values":[],"times":[],"message":"","group_by":[]}};
+        console.log('Time series data loaded:', timeSeriesData);
+        console.log('Service metrics loaded:', serviceMetrics);
+        
+        // Create Combined Timeline Chart with service-level data
+        const combinedCtx = document.getElementById('combinedChart').getContext('2d');
+        
+        // Calculate service-level P95 by excluding outlier endpoints (like chat) until service queries work
+        const nonChatEndpoints = [{"resource_name":"get_/api/v1/activity-logs/:eventid","service":"stardust-activity-log-service","requests":"50","p95_latency":"7.8 ms","p99_latency":"7.8 ms","rate":"0.28 hits/s","errors":"—","error_rate":"0.00"},{"resource_name":"get_/api/v1/activity-logs/transactions/:transactionid/actors","service":"stardust-activity-log-service","requests":"50","p95_latency":"382.4 ms","p99_latency":"382.4 ms","rate":"0.28 hits/s","errors":"—","error_rate":"0.00"},{"resource_name":"get_/api/v1/activity-logs","service":"stardust-activity-log-service","requests":"50","p95_latency":"637.9 ms","p99_latency":"637.9 ms","rate":"0.28 hits/s","errors":"—","error_rate":"0.00"}];
+        const totalRate = 0.8400000000000001;
+        const totalRequests = 150;
+        
+        // Use non-chat endpoints for more representative service P95
+        const serviceP95 = nonChatEndpoints.length > 0 ? 
+            342.7 :
+            342.7;
+        
+        console.log('Total rate:', totalRate.toFixed(2), 'hits/s');
+        console.log('Total requests:', totalRequests);
+        console.log('Service P95 (excluding chat outliers):', serviceP95.toFixed(1), 'ms');
+        
+        // Try to use service-level data first, then fall back to endpoint aggregation
+        let aggregatedRateTimeSeries = [];
+        let aggregatedP95TimeSeries = [];
+        
+        if (serviceMetrics && serviceMetrics.rate_service && serviceMetrics.p95_service) {
+            console.log('Using service-level metrics data');
+            
+            // Extract service-level time series data
+            if (serviceMetrics.rate_service.series && serviceMetrics.rate_service.series.length > 0) {
+                const rateSeries = serviceMetrics.rate_service.series[0];
+                aggregatedRateTimeSeries = rateSeries.pointlist.map(point => ({
+                    x: new Date(point[0]),
+                    y: point[1]
+                }));
+            }
+            
+            if (serviceMetrics.p95_service.series && serviceMetrics.p95_service.series.length > 0) {
+                const p95Series = serviceMetrics.p95_service.series[0];
+                aggregatedP95TimeSeries = p95Series.pointlist.map(point => ({
+                    x: new Date(point[0]),
+                    y: point[1] * 1000 // Convert from seconds to milliseconds
+                }));
+            }
+            
+            console.log('Using service-level time series data, points:', aggregatedP95TimeSeries.length);
+        } else if (Object.keys(timeSeriesData).length > 0) {
+            console.log('Using endpoint aggregated time series data');
+            // Use real time series data - aggregate across all endpoints
+            const allTimestamps = new Set();
+            
+            // Collect all unique timestamps from P95 data
+            Object.values(timeSeriesData).forEach(series => {
+                if (Array.isArray(series)) {
+                    series.forEach(point => allTimestamps.add(point.timestamp));
+                }
+            });
+            
+            // Sort timestamps chronologically
+            const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
+            
+            // Aggregate P95 data (average across all endpoints for each timestamp)
+            aggregatedP95TimeSeries = sortedTimestamps.map(timestamp => {
+                let totalP95 = 0;
+                let count = 0;
+                
+                Object.values(timeSeriesData).forEach(series => {
+                    if (Array.isArray(series)) {
+                        const point = series.find(p => p.timestamp === timestamp);
+                        if (point && point.value) {
+                            totalP95 += point.value;
+                            count++;
+                        }
+                    }
+                });
+                
+                return {
+                    x: new Date(timestamp),
+                    y: count > 0 ? totalP95 / count : 0
+                };
+            });
+            
+            // Aggregate Rate data (sum across all endpoints for each timestamp)
+            if (Object.keys(rateTimeSeriesData).length > 0) {
+                aggregatedRateTimeSeries = sortedTimestamps.map(timestamp => {
+                    let totalRate = 0;
+                    
+                    Object.values(rateTimeSeriesData).forEach(series => {
+                        if (Array.isArray(series)) {
+                            const point = series.find(p => p.timestamp === timestamp);
+                            if (point && point.value) {
+                                totalRate += point.value;
+                            }
+                        }
+                    });
+                    
+                    return {
+                        x: new Date(timestamp),
+                        y: totalRate
+                    };
+                });
+            } else {
+                // Fallback: Create rate data based on calculated total
+                aggregatedRateTimeSeries = sortedTimestamps.map(timestamp => ({
+                    x: new Date(timestamp),
+                    y: totalRate
+                }));
+            }
+            
+            console.log('Using real time series data, points:', aggregatedP95TimeSeries.length);
+        } else {
+            console.log('No time series data available, using aggregate values');
+            // Create simple two-point series for start and end using service-level P95
+            aggregatedRateTimeSeries = [{ x: startTime, y: totalRate }, { x: endTime, y: totalRate }];
+            aggregatedP95TimeSeries = [{ x: startTime, y: serviceP95 }, { x: endTime, y: serviceP95 }];
+        }
+        
+        new Chart(combinedCtx, {
+            type: 'line',
+            data: {
+                datasets: [
+                    {
+                        label: 'Request Rate (hits/s)',
+                        data: aggregatedRateTimeSeries,
+                        borderColor: '#4A90E2',
+                        backgroundColor: 'rgba(74, 144, 226, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        fill: true,
+                        tension: 0.4,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'P95 Latency (ms)',
+                        data: aggregatedP95TimeSeries,
+                        borderColor: '#F5A623',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        fill: false,
+                        tension: 0.2,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    title: { 
+                        display: true, 
+                        text: `stardust-activity-log-service Performance Metrics`,
+                        font: { size: 18, weight: 'bold' }
+                    },
+                    legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 12, padding: 10 } },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.9)',
+                        callbacks: {
+                            label: function(context) {
+                                const isRate = context.datasetIndex === 0;
+                                const unit = isRate ? ' hits/s' : ' ms';
+                                const value = context.parsed.y.toFixed(isRate ? 2 : 1);
+                                return context.dataset.label + ': ' + value + unit;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: { displayFormats: { minute: 'HH:mm' } },
+                        title: { display: true, text: 'Time', font: { size: 14, weight: '600' } }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: { 
+                            display: true, 
+                            text: 'Request Rate (hits/s)', 
+                            font: { size: 14, weight: '600' }, 
+                            color: '#4A90E2' 
+                        },
+                        beginAtZero: true,
+                        grid: { drawOnChartArea: true },
+                        ticks: { color: '#4A90E2' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: { 
+                            display: true, 
+                            text: 'P95 Latency (ms)', 
+                            font: { size: 14, weight: '600' }, 
+                            color: '#F5A623' 
+                        },
+                        beginAtZero: true,
+                        grid: { drawOnChartArea: false },
+                        ticks: { color: '#F5A623' }
+                    }
+                }
+            }
+        });
+        
+        // Initialize endpoint charts
+        function initializeEndpointCharts(index) {
+            const endpoints = ["get_/api/v1/activity-logs/:eventid","get_/api/v1/activity-logs/transactions/:transactionid/actors","get_/api/v1/activity-logs"];
+            const endpoint = endpoints[index];
+            const timeSeries = {"get_/api/v1/activity-logs/:eventid":[{"timestamp":1770059070000,"value":6.1},{"timestamp":1770059080000,"value":6.4},{"timestamp":1770059090000,"value":5.4},{"timestamp":1770059100000,"value":6.6},{"timestamp":1770059110000,"value":7.8},{"timestamp":1770059120000,"value":5.4}],"get_/api/v1/activity-logs/transactions/:transactionid/actors":[{"timestamp":1770059070000,"value":382.4},{"timestamp":1770059080000,"value":240.2},{"timestamp":1770059090000,"value":196.3},{"timestamp":1770059100000,"value":137.4},{"timestamp":1770059110000,"value":9.1},{"timestamp":1770059120000,"value":7.2}],"get_/api/v1/activity-logs":[{"timestamp":1770059070000,"value":255.5},{"timestamp":1770059080000,"value":637.9},{"timestamp":1770059090000,"value":173.4},{"timestamp":1770059100000,"value":232.8},{"timestamp":1770059110000,"value":66.3},{"timestamp":1770059120000,"value":26.2}]};
+            const rateTimeSeries = {"get_/api/v1/activity-logs/:eventid":[{"timestamp":1770059070000,"value":0.3},{"timestamp":1770059080000,"value":0.8},{"timestamp":1770059090000,"value":1.1},{"timestamp":1770059100000,"value":1.2},{"timestamp":1770059110000,"value":1.1},{"timestamp":1770059120000,"value":0.5}],"get_/api/v1/activity-logs/transactions/:transactionid/actors":[{"timestamp":1770059070000,"value":0.4},{"timestamp":1770059080000,"value":0.9},{"timestamp":1770059090000,"value":1},{"timestamp":1770059100000,"value":1.3},{"timestamp":1770059110000,"value":1.1},{"timestamp":1770059120000,"value":0.3}],"get_/api/v1/activity-logs":[{"timestamp":1770059070000,"value":0.4},{"timestamp":1770059080000,"value":0.9},{"timestamp":1770059090000,"value":0.9},{"timestamp":1770059100000,"value":1.4},{"timestamp":1770059110000,"value":1.1},{"timestamp":1770059120000,"value":0.3}]};
+            
+            const p95Data = timeSeries[endpoint] || [];
+            const rateData = rateTimeSeries[endpoint] || [];
+            
+            const color = colors[index % colors.length];
+            
+            // Rate chart
+            if (rateData.length > 0) {
+                const rateCtx = document.getElementById('rateChart-' + index).getContext('2d');
+                new Chart(rateCtx, {
+                    type: 'line',
+                    data: {
+                        datasets: [{
+                            label: 'Request Rate (hits/s)',
+                            data: rateData.map(p => ({ x: p.timestamp, y: p.value })),
+                            borderColor: '#E8871E',
+                            backgroundColor: 'rgba(232, 135, 30, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 1,
+                            pointHoverRadius: 5,
+                            fill: true,
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(0,0,0,0.9)',
+                                callbacks: {
+                                    label: function(context) {
+                                        return 'Rate: ' + context.parsed.y.toFixed(2) + ' hits/s';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: { unit: 'minute', displayFormats: { minute: 'HH:mm' } },
+                                title: { display: true, text: 'Time' },
+                                grid: { color: 'rgba(0,0,0,0.05)' }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: 'Request Rate (hits/s)' },
+                                grid: { color: 'rgba(0,0,0,0.05)' }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // P95 chart
+            const p95Ctx = document.getElementById('p95Chart-' + index).getContext('2d');
+            new Chart(p95Ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'P95 Latency (ms)',
+                        data: p95Data.map(p => ({ x: p.timestamp, y: p.value })),
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        borderWidth: 2,
+                        pointRadius: 1,
+                        pointHoverRadius: 5,
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.9)',
+                            callbacks: {
+                                label: function(context) {
+                                    return 'P95: ' + context.parsed.y.toFixed(1) + ' ms';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: { unit: 'minute', displayFormats: { minute: 'HH:mm' } },
+                            title: { display: true, text: 'Time' },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'P95 Latency (ms)' },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
