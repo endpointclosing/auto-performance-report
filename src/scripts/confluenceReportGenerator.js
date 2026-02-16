@@ -2,6 +2,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import axios from 'axios';
 import dotenv from 'dotenv';
 
@@ -144,23 +145,15 @@ class ConfluenceReportGenerator {
     }
 
     /**
-     * Get consistent font styling for report elements
+     * Confluence Cloud: Use native macros only - inline CSS is stripped by Cloud.
+     * Helper to build status macro for badges.
      */
-    getFontStyles() {
-        return {
-            fontFamily: '"Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", "Helvetica Neue", Arial, sans-serif',
-            baseFontSize: '14px',
-            headerFont: 'font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", "Helvetica Neue", Arial, sans-serif; font-weight: 600;',
-            bodyFont: 'font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", "Helvetica Neue", Arial, sans-serif; font-size: 14px; line-height: 1.6;',
-            codeFont: 'font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace; font-size: 12px;',
-            linkStyle: 'color: #0052CC; text-decoration: underline; font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", "Helvetica Neue", Arial, sans-serif;',
-            tableFont: 'font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", "Helvetica Neue", Arial, sans-serif; font-size: 13px;',
-            emphasisFont: 'font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", "Helvetica Neue", Arial, sans-serif; font-weight: bold;'
-        };
+    statusMacro(colour, title) {
+        return `<ac:structured-macro ac:name="status" ac:schema-version="1"><ac:parameter ac:name="colour">${colour}</ac:parameter><ac:parameter ac:name="title">${title}</ac:parameter></ac:structured-macro>`;
     }
 
     /**
-     * Generate Confluence Storage Format (XHTML)
+     * Generate Confluence Storage Format (XHTML) - Confluence Cloud compatible, macros only
      */
     generateStorageFormat(data, template = 'detailed', customTitle = null, errorMetrics = null, containerMetrics = null, dashboardUrl = null) {
         const timestamp = new Date().toLocaleString();
@@ -168,16 +161,18 @@ class ConfluenceReportGenerator {
 
         let content = '';
 
-        // Header section with better styling - use provided dashboard URL or fallback to generated one
+        // Header section - clickable service name link (Confluence auto-styles in blue)
         const serviceLink = dashboardUrl || this.generateDatadogUrl(data);
-        content += '<table style="width: 100%; border: none; margin-bottom: 20px; background-color: #F4F5F7; border-radius: 3px;">';
-        content += '<tbody>';
-        content += '<tr>';
-        content += `<td style="padding: 15px; border: none;"><strong style="font-size: 14px;">Service:</strong> <a href="${serviceLink}" style="background-color: #0052CC; color: white; padding: 4px 12px; border-radius: 3px; font-weight: 600; font-size: 13px; text-decoration: none; margin-left: 8px;" target="_blank">${data.service}</a></td>`;
-        content += `<td style="padding: 15px; border: none;"><strong style="font-size: 14px;">Environment:</strong> <span style="background-color: #00875A; color: white; padding: 4px 12px; border-radius: 3px; font-weight: 600; font-size: 13px;">${data.environment.toUpperCase()}</span></td>`;
-        content += '</tr>';
-        content += '</tbody></table>';
-        content += '<hr style="border: none; border-top: 2px solid #DFE1E6; margin: 20px 0;"/>';
+        content += '<table data-layout="default" data-table-width="1200">';
+        content += '<colgroup><col width="600"/><col width="600"/></colgroup>';
+        content += '<tbody><tr>';
+        content += '<td><p><strong>Service:</strong> ';
+        content += `<a href="${serviceLink}" target="_blank"><strong style="font-size: 14px;">${data.service}</strong></a>`;
+        content += '</p></td>';
+        content += '<td><p><strong>Environment:</strong> ';
+        content += this.statusMacro('Green', data.environment ? data.environment.toUpperCase() : 'STAGING');
+        content += '</p></td></tr></tbody></table>';
+        content += '<hr/>';
 
         if (template === 'summary') {
             content += this.generateSummaryReport(data);
@@ -205,45 +200,50 @@ class ConfluenceReportGenerator {
         // Add Pod/Container Metrics section if available
         content += this.generatePodMetricsSection(data);
 
-        // Add Endpoints section
-        content += '<h2 style="' + this.getFontStyles().headerFont + ' color: #172B4D; border-bottom: 3px solid #0052CC; padding-bottom: 8px; margin-top: 30px; font-weight: bold;"><span style="background-color: #0052CC; color: white; padding: 4px 12px; border-radius: 3px;">📋 Endpoint Performance Summary</span></h2>';
+        // Add Endpoints section - panel macro (Cloud compatible)
+        content += '<ac:structured-macro ac:name="panel" ac:schema-version="1">';
+        content += '<ac:parameter ac:name="titleBGColor">#0052CC</ac:parameter>';
+        content += '<ac:parameter ac:name="titleColor">#FFFFFF</ac:parameter>';
+        content += '<ac:parameter ac:name="title">📋 Endpoint Performance Summary</ac:parameter>';
+        content += '<ac:rich-text-body>';
 
         // Add disclaimer about metric values
         content += '<ac:structured-macro ac:name="info" ac:schema-version="1">';
         content += '<ac:rich-text-body>';
-        content += '<p style="' + this.getFontStyles().bodyFont + ' margin: 0;"><strong>Note:</strong> Metric values are calculated from Datadog APM traces using time-series aggregation. ';
+        content += '<p><strong>Note:</strong> Metric values are calculated from Datadog APM traces using time-series aggregation. ';
         content += 'Values may vary slightly (±10-20%) from the Datadog UI due to different aggregation methods and time bucket granularity. ';
         content += 'Trends and relative comparisons between endpoints remain accurate for performance analysis.</p>';
         content += '</ac:rich-text-body>';
         content += '</ac:structured-macro>';
 
-        // Performance table in Datadog format
+        // Performance table - no inline CSS
         content += '<table data-table-width="1200">';
         content += '<colgroup><col width="250"/><col width="140"/><col width="140"/><col width="140"/><col width="140"/><col width="120"/><col width="140"/></colgroup>';
-        content += '<tbody>';
-        content += '<tr>';
-        content += '<th><p style="' + this.getFontStyles().tableFont + ' font-weight: 600;"><strong>RESOURCE_NAME</strong></p></th>';
-        content += '<th><p style="' + this.getFontStyles().tableFont + ' font-weight: 600;"><strong>REQUESTS</strong></p></th>';
-        content += '<th><p style="' + this.getFontStyles().tableFont + ' font-weight: 600;"><strong>P95 LATENCY</strong></p></th>';
-        content += '<th><p style="' + this.getFontStyles().tableFont + ' font-weight: 600;"><strong>P99 LATENCY</strong></p></th>';
-        content += '<th><p style="' + this.getFontStyles().tableFont + ' font-weight: 600;"><strong>RATE</strong></p></th>';
-        content += '<th><p style="' + this.getFontStyles().tableFont + ' font-weight: 600;"><strong>ERRORS</strong></p></th>';
-        content += '<th><p style="' + this.getFontStyles().tableFont + ' font-weight: 600;"><strong>ERROR RATE</strong></p></th>';
-        content += '</tr>';
+        content += '<thead><tr>';
+        content += '<th><strong>RESOURCE_NAME</strong></th>';
+        content += '<th><strong>REQUESTS</strong></th>';
+        content += '<th><strong>P95 LATENCY</strong></th>';
+        content += '<th><strong>P99 LATENCY</strong></th>';
+        content += '<th><strong>RATE</strong></th>';
+        content += '<th><strong>ERRORS</strong></th>';
+        content += '<th><strong>ERROR RATE</strong></th>';
+        content += '</tr></thead><tbody>';
 
         data.metrics.forEach(metric => {
             content += '<tr>';
-            content += `<td><p style="${this.getFontStyles().tableFont}">${metric.resource_name}</p></td>`;
-            content += `<td><p style="${this.getFontStyles().tableFont}">${metric.requests} hits</p></td>`;
-            content += `<td><p style="${this.getFontStyles().tableFont}">${metric.p95_latency}</p></td>`;
-            content += `<td><p style="${this.getFontStyles().tableFont}">${metric.p99_latency}</p></td>`;
-            content += `<td><p style="${this.getFontStyles().tableFont}">${metric.rate}</p></td>`;
-            content += `<td><p style="${this.getFontStyles().tableFont}">${metric.errors || '—'}</p></td>`;
-            content += `<td><p style="${this.getFontStyles().tableFont}">${metric.error_rate || '0'}</p></td>`;
+            content += `<td><code>${metric.resource_name}</code></td>`;
+            content += `<td>${metric.requests} hits</td>`;
+            content += `<td><strong>${metric.p95_latency}</strong></td>`;
+            content += `<td><strong>${metric.p99_latency}</strong></td>`;
+            content += `<td>${metric.rate}</td>`;
+            content += `<td>${metric.errors || '—'}</td>`;
+            content += `<td>${metric.error_rate || '0'}</td>`;
             content += '</tr>';
         });
 
         content += '</tbody></table>';
+        content += '</ac:rich-text-body>';
+        content += '</ac:structured-macro>';
 
         // Add P95 Time Series Chart section if data is available
         if (data.timeSeries && Object.keys(data.timeSeries).length > 0) {
@@ -264,35 +264,36 @@ class ConfluenceReportGenerator {
     }
 
     generateP95ChartSection(data) {
-        let content = '<h2 style="' + this.getFontStyles().headerFont + ' color: #172B4D; border-bottom: 3px solid #0052CC; padding-bottom: 8px; margin-top: 30px; font-weight: bold;"><span style="background-color: #0052CC; color: white; padding: 4px 12px; border-radius: 3px;">📊 P95 Latency Time Series Analysis</span></h2>';
+        // Panel macro for section - Cloud compatible
+        let content = '<ac:structured-macro ac:name="panel" ac:schema-version="1">';
+        content += '<ac:parameter ac:name="titleBGColor">#0052CC</ac:parameter>';
+        content += '<ac:parameter ac:name="titleColor">#FFFFFF</ac:parameter>';
+        content += '<ac:parameter ac:name="title">📊 P95 Latency Time Series Analysis</ac:parameter>';
+        content += '<ac:rich-text-body>';
 
-        // Generate unique GitHub Pages URL (service-specific)
-        const serviceName = data.service || 'report';
-        const timestamp = new Date().toISOString().split('T')[0];
-        const htmlFileName = `${serviceName}-report-${timestamp}.html`;
-        const githubPagesUrl = `https://endpointclosing.github.io/auto-performance-report/html-reports/${htmlFileName}`;
-
-        // Add interactive report download link and view in browser button in a styled box
-        content += '<div style="background-color: #F4F5F7; border-left: 4px solid #00875A; padding: 12px 20px; margin: 15px 0; border-radius: 3px;">';
-        content += '<p style="margin: 0 0 10px 0;"><strong>📥 Download Interactive Report:</strong> ';
+        // Note macro for download info
+        content += '<ac:structured-macro ac:name="note" ac:schema-version="1">';
+        content += '<ac:rich-text-body>';
+        content += '<p><strong>📥 Download Interactive Report:</strong> ';
         content += '<ac:link>';
         content += '<ri:attachment ri:filename="complete-interactive-report.html"/>';
         content += '<ac:plain-text-link-body><![CDATA[complete-interactive-report.html]]></ac:plain-text-link-body>';
         content += '</ac:link>';
         content += ' for real-time hover tooltips</p>';
 
-        // Add View in Browser button with unique service URL
-        content += '<p style="margin: 0;">';
-        content += `<a href="${githubPagesUrl}" target="_blank" style="display: inline-block; background-color: #0052CC; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-weight: bold;">`;
-        content += '🌐 View in Browser';
-        content += '</a>';
-        content += '</p>';
-        content += '</div>';
-        content += '<style>a[href] { font-weight: bold; }</style>';
+        const serviceName = data.service || 'report';
+        const timestamp = new Date().toISOString().split('T')[0];
+        const htmlFileName = `${serviceName}-report-${timestamp}.html`;
+        const githubBaseUrl = process.env.GITHUB_PAGES_BASE_URL || 'https://endpointclosing.github.io';
+        const githubRepoName = process.env.GITHUB_REPO_NAME || 'auto-performance-report';
+        const githubPagesUrl = `${githubBaseUrl}/${githubRepoName}/html-reports/${htmlFileName}`;
+        content += `<p><a href="${githubPagesUrl}" target="_blank">🌐 View in Browser</a></p>`;
+        content += '</ac:rich-text-body>';
+        content += '</ac:structured-macro>';
 
-        // Generate Confluence native charts
         content += this.generateConfluenceNativeCharts(data);
-
+        content += '</ac:rich-text-body>';
+        content += '</ac:structured-macro>';
         return content;
     }
 
@@ -300,11 +301,12 @@ class ConfluenceReportGenerator {
         let content = '';
         const colors = ['#632CA6', '#F84D8C', '#19A974', '#E8871E', '#3D4EB8', '#C93854', '#137CBD', '#00BF87', '#DB3737', '#8F398F'];
 
-        // Individual endpoint time series charts section
-        content += '<h3 style="' + this.getFontStyles().headerFont + ' color: #172B4D; margin-top: 25px; margin-bottom: 10px; font-weight: bold;"><span style="background-color: #0052CC; color: white; padding: 4px 12px; border-radius: 3px;">📈 Individual Endpoint Time Series</span></h3>';
-        content += '<div style="background-color: #F4F5F7; padding: 10px 15px; margin-bottom: 15px; border-radius: 3px;">';
-        content += '<p style="margin: 0; color: #172B4D; font-weight: 500;">Each section shows P95 latency over time with request rate context. Click to expand endpoint details.</p>';
-        content += '</div>';
+        // Individual endpoint time series - info macro for description
+        content += '<ac:structured-macro ac:name="info" ac:schema-version="1">';
+        content += '<ac:rich-text-body>';
+        content += '<p><strong>📈 Individual Endpoint Time Series</strong> - Each section shows P95 latency over time with request rate context. Click to expand endpoint details.</p>';
+        content += '</ac:rich-text-body>';
+        content += '</ac:structured-macro>';
 
         Object.keys(data.timeSeries).forEach((endpoint, index) => {
             const metric = data.metrics.find(m => m.resource_name === endpoint);
@@ -319,16 +321,13 @@ class ConfluenceReportGenerator {
             content += `<ac:parameter ac:name="title">${index + 1}. ${endpoint}</ac:parameter>`;
             content += '<ac:rich-text-body>';
 
-            // Add performance summary at top
-            content += '<table style="margin-bottom: 15px; width: 700px; background-color: #f4f5f7;">';
-            content += '<tbody>';
-            content += '<tr>';
-            content += `<td style="padding: 8px;"><strong>Request Rate:</strong> ${metric.rate}</td>`;
-            content += `<td style="padding: 8px;"><strong>Total Requests:</strong> ${metric.requests}</td>`;
-            content += `<td style="padding: 8px;"><strong>P95 Latency:</strong> ${metric.p95_latency}</td>`;
-            content += `<td style="padding: 8px;"><strong>P99 Latency:</strong> ${metric.p99_latency}</td>`;
-            content += '</tr>';
-            content += '</tbody></table>';
+            // Add performance summary at top - no inline CSS
+            content += '<table><tbody><tr>';
+            content += `<td><strong>Request Rate:</strong> ${metric.rate}</td>`;
+            content += `<td><strong>Total Requests:</strong> ${metric.requests}</td>`;
+            content += `<td><strong>P95 Latency:</strong> ${metric.p95_latency}</td>`;
+            content += `<td><strong>P99 Latency:</strong> ${metric.p99_latency}</td>`;
+            content += '</tr></tbody></table>';
 
             // Create dual-axis chart: Rate vs P95 over time
             const chartLabels = timeSeries.map((point, idx) => {
@@ -414,10 +413,9 @@ class ConfluenceReportGenerator {
             const max = Math.max(...values).toFixed(1);
             const median = this.calculateMedian(values).toFixed(1);
 
-            content += '<table style="margin-top: 15px; width: 600px;">';
-            content += '<tbody>';
-            content += '<tr><td style="width: 150px;"><strong>Data Points:</strong></td><td>' + timeSeries.length + '</td>';
-            content += '<td style="width: 150px;"><strong>Average:</strong></td><td>' + avg + ' ms</td></tr>';
+            content += '<table><tbody>';
+            content += '<tr><td><strong>Data Points:</strong></td><td>' + timeSeries.length + '</td>';
+            content += '<td><strong>Average:</strong></td><td>' + avg + ' ms</td></tr>';
             content += '<tr><td><strong>Median:</strong></td><td>' + median + ' ms</td>';
             content += '<td><strong>Min:</strong></td><td>' + min + ' ms</td></tr>';
             content += '<tr><td><strong>Max:</strong></td><td>' + max + ' ms</td>';
@@ -443,180 +441,150 @@ class ConfluenceReportGenerator {
         const hasErrors = errorMetrics.logSummary.totalLogErrors > 0 ||
             errorMetrics.traceSummary.totalErrors > 0;
 
-        let content = '<h2 style="' + this.getFontStyles().headerFont + ' color: #172B4D; border-bottom: 3px solid #DE350B; padding-bottom: 8px; margin-top: 25px; font-weight: bold;"><span style="background-color: #DE350B; color: white; padding: 4px 12px; border-radius: 3px;">⚠️ Error Summary</span></h2>';
+        // Panel macro for Error Summary - Cloud compatible
+        let content = '<ac:structured-macro ac:name="panel" ac:schema-version="1">';
+        content += '<ac:parameter ac:name="titleBGColor">#DE350B</ac:parameter>';
+        content += '<ac:parameter ac:name="titleColor">#FFFFFF</ac:parameter>';
+        content += '<ac:parameter ac:name="title">⚠️ Error Summary</ac:parameter>';
+        content += '<ac:rich-text-body>';
 
         if (!hasErrors) {
-            content += '<div style="background-color: #E3FCEF; border-left: 4px solid #00875A; padding: 15px 20px; margin: 15px 0; border-radius: 3px;">';
-            content += '<p style="' + this.getFontStyles().bodyFont + ' margin: 0; color: #006644;"><strong>✅ No errors detected during this test period</strong></p>';
-            content += '</div>';
+            content += '<ac:structured-macro ac:name="tip" ac:schema-version="1">';
+            content += '<ac:rich-text-body>';
+            content += '<p><strong>✅ No errors detected during this test period</strong></p>';
+            content += '</ac:rich-text-body>';
+            content += '</ac:structured-macro>';
+            content += '</ac:rich-text-body></ac:structured-macro>';
             return content;
         }
 
-        // Error Statistics Table
-        content += '<table data-table-width="1200" data-layout="wide" style="margin: 15px 0;">';
+        // Error Statistics Table - no inline CSS
+        content += '<table data-table-width="1200" data-layout="wide">';
         content += '<colgroup><col width="300"/><col width="200"/><col width="700"/></colgroup>';
-        content += '<thead><tr style="background-color: #FFEBE6;">';
-        content += '<th><p style="' + this.getFontStyles().tableHeaderFont + '"><strong>Error Type</strong></p></th>';
-        content += '<th><p style="' + this.getFontStyles().tableHeaderFont + '"><strong>Count</strong></p></th>';
-        content += '<th><p style="' + this.getFontStyles().tableHeaderFont + '"><strong>Details</strong></p></th>';
+        content += '<thead><tr>';
+        content += '<th><strong>Error Type</strong></th>';
+        content += '<th><strong>Count</strong></th>';
+        content += '<th><strong>Details</strong></th>';
         content += '</tr></thead><tbody>';
 
-        // Log Errors
         if (errorMetrics.logSummary.totalLogErrors > 0) {
             content += '<tr>';
-            content += '<td><p style="' + this.getFontStyles().tableFont + '"><strong>Application Log Errors</strong></p></td>';
-            content += '<td><p style="' + this.getFontStyles().tableFont + ' color: #DE350B;"><strong>' + errorMetrics.logSummary.totalLogErrors + '</strong></p></td>';
+            content += '<td><strong>Application Log Errors</strong></td>';
+            content += '<td><strong>' + errorMetrics.logSummary.totalLogErrors + '</strong></td>';
             content += '<td>';
-
-            // Add Datadog logs link
             const logsUrl = this.generateDatadogLogsUrl(data);
-            content += '<p style="' + this.getFontStyles().smallFont + ' margin-bottom: 8px;"><a href="' + logsUrl + '" target="_blank" style="color: #0052CC; text-decoration: none; font-weight: 600;">🔗 View in Datadog Logs</a></p>';
-
-            // Top error messages
+            content += '<p><a href="' + logsUrl + '" target="_blank">🔗 View in Datadog Logs</a></p>';
             const topErrors = errorMetrics.logSummary.errorsByMessage.slice(0, 5);
             if (topErrors.length > 0) {
-                content += '<ul style="margin: 4px 0; padding-left: 20px;">';
+                content += '<ul>';
                 topErrors.forEach(error => {
-                    content += '<li style="' + this.getFontStyles().smallFont + '">' + this.escapeHtml(error.message.substring(0, 100)) + '... <span style="color: #DE350B;">(' + error.errorCount + ' occurrences)</span></li>';
+                    content += '<li>' + this.escapeHtml(error.message.substring(0, 100)) + '... (' + error.errorCount + ' occurrences)</li>';
                 });
                 content += '</ul>';
             }
             content += '</td></tr>';
         }
 
-        // Trace Errors
         if (errorMetrics.traceSummary.totalErrors > 0) {
             content += '<tr>';
-            content += '<td><p style="' + this.getFontStyles().tableFont + '"><strong>APM Trace Errors</strong></p></td>';
-            content += '<td><p style="' + this.getFontStyles().tableFont + ' color: #DE350B;"><strong>' + errorMetrics.traceSummary.totalErrors + '</strong></p></td>';
-            content += '<td><p style="' + this.getFontStyles().tableFont + '">Error Rate: ' + errorMetrics.traceSummary.errorPercentage.toFixed(2) + '%</p></td>';
+            content += '<td><strong>APM Trace Errors</strong></td>';
+            content += '<td><strong>' + errorMetrics.traceSummary.totalErrors + '</strong></td>';
+            content += '<td>Error Rate: ' + errorMetrics.traceSummary.errorPercentage.toFixed(2) + '%</td>';
             content += '</tr>';
         }
 
         content += '</tbody></table>';
-
+        content += '</ac:rich-text-body>';
+        content += '</ac:structured-macro>';
         return content;
     }
 
     generateOOMEventsSection(oomSummary) {
         if (!oomSummary || oomSummary.totalOOMEvents === 0) return '';
 
-        let content = '<h2 style="' + this.getFontStyles().headerFont + ' color: #172B4D; border-bottom: 3px solid #FF5630; padding-bottom: 8px; margin-top: 25px; font-weight: bold;"><span style="background-color: #FF5630; color: white; padding: 4px 12px; border-radius: 3px;">🚨 Out of Memory Events</span></h2>';
+        // Panel macro for OOM section - Cloud compatible
+        let content = '<ac:structured-macro ac:name="panel" ac:schema-version="1">';
+        content += '<ac:parameter ac:name="titleBGColor">#FF5630</ac:parameter>';
+        content += '<ac:parameter ac:name="titleColor">#FFFFFF</ac:parameter>';
+        content += '<ac:parameter ac:name="title">🚨 Out of Memory Events</ac:parameter>';
+        content += '<ac:rich-text-body>';
 
-        content += '<div style="background-color: #FFEBE6; border-left: 4px solid #FF5630; padding: 15px 20px; margin: 15px 0; border-radius: 3px;">';
-        content += '<p style="' + this.getFontStyles().emphasisFont + ' margin: 0; color: #BF2600;"><strong>⚠️ ' + oomSummary.totalOOMEvents + ' OOM event(s) detected - Critical memory issue requiring immediate attention</strong></p>';
-        content += '</div>';
+        content += '<ac:structured-macro ac:name="warning" ac:schema-version="1">';
+        content += '<ac:rich-text-body>';
+        content += '<p><strong>⚠️ ' + oomSummary.totalOOMEvents + ' OOM event(s) detected - Critical memory issue requiring immediate attention</strong></p>';
+        content += '</ac:rich-text-body>';
+        content += '</ac:structured-macro>';
 
-        // OOM Events Table
-        content += '<table data-table-width="1200" data-layout="wide" style="margin: 15px 0;">';
+        content += '<table data-table-width="1200" data-layout="wide">';
         content += '<colgroup><col width="200"/><col width="200"/><col width="300"/><col width="500"/></colgroup>';
-        content += '<thead><tr style="background-color: #FFEBE6;">';
-        content += '<th><p style="' + this.getFontStyles().tableHeaderFont + '"><strong>Timestamp</strong></p></th>';
-        content += '<th><p style="' + this.getFontStyles().tableHeaderFont + '"><strong>Host</strong></p></th>';
-        content += '<th><p style="' + this.getFontStyles().tableHeaderFont + '"><strong>Pod</strong></p></th>';
-        content += '<th><p style="' + this.getFontStyles().tableHeaderFont + '"><strong>Description</strong></p></th>';
+        content += '<thead><tr>';
+        content += '<th><strong>Timestamp</strong></th>';
+        content += '<th><strong>Host</strong></th>';
+        content += '<th><strong>Pod</strong></th>';
+        content += '<th><strong>Description</strong></th>';
         content += '</tr></thead><tbody>';
 
         oomSummary.oomEventDetails.forEach(event => {
             const timestamp = new Date(event.timestamp).toLocaleString();
             const podTag = event.tags.find(t => t.startsWith('display_container_name:'));
             const podName = podTag ? podTag.split(':')[1] : 'Unknown';
-
             content += '<tr>';
-            content += '<td><p style="' + this.getFontStyles().smallFont + '">' + timestamp + '</p></td>';
-            content += '<td><p style="' + this.getFontStyles().smallFont + '">' + (event.host || 'N/A') + '</p></td>';
-            content += '<td><p style="' + this.getFontStyles().smallFont + '">' + podName + '</p></td>';
-            content += '<td><p style="' + this.getFontStyles().smallFont + '">' + this.escapeHtml(event.text) + '</p></td>';
+            content += '<td>' + timestamp + '</td>';
+            content += '<td>' + (event.host || 'N/A') + '</td>';
+            content += '<td>' + podName + '</td>';
+            content += '<td>' + this.escapeHtml(event.text) + '</td>';
             content += '</tr>';
         });
 
         content += '</tbody></table>';
-
+        content += '</ac:rich-text-body>';
+        content += '</ac:structured-macro>';
         return content;
     }
 
     generateObservationsSection(data) {
-        let content = '<h2 style="' + this.getFontStyles().headerFont + ' color: #172B4D; border-bottom: 3px solid #6554C0; padding-bottom: 8px; margin-top: 25px; font-weight: bold;"><span style="background-color: #6554C0; color: white; padding: 4px 12px; border-radius: 3px;">🔍 Overall Observations & Recommendations</span></h2>';
+        // Panel macro for Observations - Cloud compatible
+        let content = '<ac:structured-macro ac:name="panel" ac:schema-version="1">';
+        content += '<ac:parameter ac:name="titleBGColor">#6554C0</ac:parameter>';
+        content += '<ac:parameter ac:name="titleColor">#FFFFFF</ac:parameter>';
+        content += '<ac:parameter ac:name="title">🔍 Overall Observations & Recommendations</ac:parameter>';
+        content += '<ac:rich-text-body>';
 
         const observations = this.analyzePerformanceData(data);
 
-        // Performance Status Badge
-        const statusColor = observations.overallStatus === 'good' ? '#00875A' :
-            observations.overallStatus === 'warning' ? '#FF991F' : '#DE350B';
-        const statusBg = observations.overallStatus === 'good' ? '#E3FCEF' :
-            observations.overallStatus === 'warning' ? '#FFFAE6' : '#FFEBE6';
+        // Performance Status - use status macro (Green/Yellow/Red)
+        const statusColour = observations.overallStatus === 'good' ? 'Green' :
+            observations.overallStatus === 'warning' ? 'Yellow' : 'Red';
         const statusText = observations.overallStatus === 'good' ? '✅ Acceptable Performance' :
             observations.overallStatus === 'warning' ? '⚠️ Performance Concerns' : '❌ Critical Issues';
+        content += '<p>' + this.statusMacro(statusColour, statusText) + '</p>';
 
-        content += '<div style="background-color: ' + statusBg + '; border-left: 4px solid ' + statusColor + '; padding: 15px 20px; margin: 15px 0; border-radius: 3px;">';
-        content += '<p style="' + this.getFontStyles().emphasisFont + ' margin: 0; color: ' + statusColor + ';"><strong>' + statusText + '</strong></p>';
-        content += '</div>';
-
-        // Key Findings with color indicators
-        content += '<h3 style="' + this.getFontStyles().subheaderFont + '"><span style="background-color: #0052CC; color: white; padding: 4px 8px; border-radius: 3px; font-size: 12px; font-weight: 600; margin-right: 8px;">📊</span>Key Findings:</h3>';
-        content += '<ul style="margin: 10px 0; padding-left: 30px;">';
+        // Key Findings - no inline CSS (Cloud strips it)
+        content += '<h3>📊 Key Findings:</h3>';
+        content += '<ul>';
         observations.findings.forEach(finding => {
-            // Determine if finding indicates an issue or clear status
-            const isIssue = finding.toLowerCase().includes('high') ||
-                finding.toLowerCase().includes('error') ||
-                finding.toLowerCase().includes('failed') ||
-                finding.toLowerCase().includes('restart') ||
-                finding.toLowerCase().includes('critical') ||
-                finding.toLowerCase().includes('warning') ||
-                finding.toLowerCase().includes('spike') ||
-                finding.toLowerCase().includes('exceed');
-
-            const isClear = finding.toLowerCase().includes('no errors') ||
-                finding.toLowerCase().includes('stable') ||
-                finding.toLowerCase().includes('acceptable') ||
-                finding.toLowerCase().includes('normal') ||
-                finding.toLowerCase().includes('good') ||
-                finding.toLowerCase().includes('within limits');
-
-            let colorStyle = '';
-            if (isIssue) {
-                colorStyle = ' color: #DE350B; font-weight: bold;'; // Red and bold for issues
-            } else if (isClear) {
-                colorStyle = ' color: #00875A;'; // Green for clear status
-            }
-
-            content += '<li style="' + this.getFontStyles().bodyFont + colorStyle + ' margin: 8px 0;">' + finding + '</li>';
+            content += '<li>' + this.stripInlineStyles(finding) + '</li>';
         });
         content += '</ul>';
 
-        // Recommendations with color indicators
         if (observations.recommendations.length > 0) {
-            content += '<h3 style="' + this.getFontStyles().subheaderFont + '">💡 Recommendations:</h3>';
-            content += '<ul style="margin: 10px 0; padding-left: 30px;">';
+            content += '<h3>💡 Recommendations:</h3>';
+            content += '<ul>';
             observations.recommendations.forEach(rec => {
-                // Recommendations for action are typically red/bold, positive ones are green
-                const requiresAction = rec.toLowerCase().includes('consider') ||
-                    rec.toLowerCase().includes('investigate') ||
-                    rec.toLowerCase().includes('monitor') ||
-                    rec.toLowerCase().includes('optimize') ||
-                    rec.toLowerCase().includes('improve') ||
-                    rec.toLowerCase().includes('review') ||
-                    rec.toLowerCase().includes('should') ||
-                    rec.toLowerCase().includes('need');
-
-                const isPositive = rec.toLowerCase().includes('maintain') ||
-                    rec.toLowerCase().includes('continue') ||
-                    rec.toLowerCase().includes('no action') ||
-                    rec.toLowerCase().includes('performing well');
-
-                let colorStyle = '';
-                if (requiresAction) {
-                    colorStyle = ' color: #DE350B; font-weight: bold;'; // Red and bold for action items
-                } else if (isPositive) {
-                    colorStyle = ' color: #00875A;'; // Green for positive recommendations
-                }
-
-                content += '<li style="' + this.getFontStyles().bodyFont + colorStyle + ' margin: 8px 0;">' + rec + '</li>';
+                content += '<li>' + this.stripInlineStyles(rec) + '</li>';
             });
             content += '</ul>';
         }
 
+        content += '</ac:rich-text-body>';
+        content += '</ac:structured-macro>';
         return content;
+    }
+
+    /** Strip inline styles from HTML - Confluence Cloud strips them, keep tags/structure */
+    stripInlineStyles(html) {
+        if (!html || typeof html !== 'string') return html;
+        return html.replace(/\s*style="[^"]*"/g, '');
     }
 
     generateSummaryObservations(data) {
@@ -1021,7 +989,7 @@ class ConfluenceReportGenerator {
 
             // Show P95 latency for each endpoint instead of average
             const p95Values = highLatencyEndpoints.map(ep => `${(parseFloat(ep.p95_latency) / 1000).toFixed(2)}s`).join(', ');
-            const endpointNames = highLatencyEndpoints.map(ep => `<span style="color: black; font-weight: bold;">${ep.resource_name}</span>`).join(', ');
+            const endpointNames = highLatencyEndpoints.map(ep => `<strong>${ep.resource_name}</strong>`).join(', ');
             findings.push(`<strong>High P95 Latency Detected:</strong> ${highLatencyEndpoints.length} endpoint(s) with P95 > 1s (p95: ${p95Values}). Endpoints: ${endpointNames}`);
             recommendations.push('Investigate slow endpoints for database query optimization, external API calls, or inefficient algorithms');
             overallStatus = 'warning';
@@ -1153,7 +1121,7 @@ class ConfluenceReportGenerator {
             const totalRestarts = podsWithRestarts.reduce((sum, pod) => sum + (pod.restarts || 0), 0);
 
             if (totalRestarts > 0) {
-                findings.push(`<strong style="color: #DE350B;">Pod Restarts Detected:</strong> ${totalRestarts} restart(s) during monitoring window across ${podsWithRestarts.length} pod(s)`);
+                findings.push(`<strong>Pod Restarts Detected:</strong> ${totalRestarts} restart(s) during monitoring window across ${podsWithRestarts.length} pod(s)`);
 
                 // Add restart details with exact timestamps and analysis
                 for (const pod of podsWithRestarts) {
@@ -1216,85 +1184,53 @@ class ConfluenceReportGenerator {
     }
 
     generateObjectiveSection(data) {
-        let content = '<h2 style="' + this.getFontStyles().headerFont + ' color: #172B4D; border-bottom: 3px solid #0052CC; padding-bottom: 8px; margin-top: 25px; font-weight: bold;"><span style="background-color: #0052CC; color: white; padding: 4px 12px; border-radius: 3px;">📊 Objective</span></h2>';
-        content += '<div style="background-color: #DEEBFF; border-left: 4px solid #0052CC; padding: 15px 20px; margin: 15px 0; border-radius: 3px;">';
-        content += '<p style="' + this.getFontStyles().bodyFont + ' margin: 0;">This report validates system performance under progressive load conditions by monitoring key metrics including latency, throughput, error rates, and resource utilization for critical API endpoints. ';
+        let content = '<ac:structured-macro ac:name="panel" ac:schema-version="1">';
+        content += '<ac:parameter ac:name="titleBGColor">#0052CC</ac:parameter>';
+        content += '<ac:parameter ac:name="titleColor">#FFFFFF</ac:parameter>';
+        content += '<ac:parameter ac:name="title">📊 Objective</ac:parameter>';
+        content += '<ac:rich-text-body>';
+        content += '<p>This report validates system performance under progressive load conditions by monitoring key metrics including latency, throughput, error rates, and resource utilization for critical API endpoints. ';
         content += 'The analysis focuses on detecting performance regressions against established baselines, uncovering potential bottlenecks, and identifying optimization opportunities in scaling and resource allocation. ';
         content += 'The goal is to ensure predictable autoscaling behavior and maintain consistent, reliable performance at peak demand levels.</p>';
-        content += '</div>';
-
+        content += '</ac:rich-text-body>';
+        content += '</ac:structured-macro>';
         return content;
     }
 
     generateTestScopeSection(data) {
-        // Calculate test duration and execution time
         const fromTime = new Date(data.timeRange.from);
         const toTime = new Date(data.timeRange.to);
         const durationMinutes = Math.round((toTime - fromTime) / 60000);
 
-        // Extract unique scripts/endpoints from the data
-        const scriptsIncluded = data.metrics.map(metric => {
-            // Keep original format with underscores
-            return metric.resource_name;
-        }).join(', ');
+        let content = '<ac:structured-macro ac:name="panel" ac:schema-version="1">';
+        content += '<ac:parameter ac:name="titleBGColor">#0052CC</ac:parameter>';
+        content += '<ac:parameter ac:name="titleColor">#FFFFFF</ac:parameter>';
+        content += '<ac:parameter ac:name="title">📈 Test Scope & Design</ac:parameter>';
+        content += '<ac:rich-text-body>';
 
-        let content = '<h2 style="' + this.getFontStyles().headerFont + ' color: #172B4D; border-bottom: 3px solid #0052CC; padding-bottom: 8px; margin-top: 25px; font-weight: bold;"><span style="background-color: #0052CC; color: white; padding: 4px 12px; border-radius: 3px;">📈 Test Scope & Design:</span></h2>';
         content += '<table data-table-width="1200" data-layout="wide">';
-        content += '<colgroup><col width="200"/><col width="1000"/></colgroup>';
+        content += '<colgroup><col width="350"/><col width="850"/></colgroup>';
         content += '<tbody>';
 
-        // Test Environment
-        content += '<tr>';
-        content += '<td style="padding: 8px 12px;"><p style="' + this.getFontStyles().emphasisFont + ' margin: 4px 0;"><strong>Test Environment</strong></p></td>';
-        content += '<td style="padding: 8px 12px;"><p style="' + this.getFontStyles().bodyFont + ' margin: 4px 0;">' + (data.environment.charAt(0).toUpperCase() + data.environment.slice(1)) + '</p></td>';
-        content += '</tr>';
+        content += '<tr><td><strong>Test Environment</strong></td>';
+        content += '<td>' + (data.environment.charAt(0).toUpperCase() + data.environment.slice(1)) + '</td></tr>';
 
-        // Test Execution time
-        content += '<tr>';
-        content += '<td style="padding: 8px 12px;"><p style="' + this.getFontStyles().emphasisFont + ' margin: 4px 0;"><strong>Test Execution time</strong></p></td>';
-        content += '<td style="padding: 8px 12px;"><p style="' + this.getFontStyles().bodyFont + ' margin: 4px 0;">' + fromTime.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
+        content += '<tr><td><strong>Test Execution time</strong></td>';
+        content += '<td>' + fromTime.toLocaleDateString('en-US', {
+            month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
         }) + ' – ' + toTime.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-        }) + '</p></td>';
-        content += '</tr>';
+            month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
+        }) + '</td></tr>';
 
-        // Test type
-        content += '<tr>';
-        content += '<td style="padding: 8px 12px;"><p style="' + this.getFontStyles().emphasisFont + ' margin: 4px 0;"><strong>Test type</strong></p></td>';
-        content += '<td style="padding: 8px 12px;"><p style="' + this.getFontStyles().bodyFont + ' margin: 4px 0;">Stress Test</p></td>';
-        content += '</tr>';
+        content += '<tr><td><strong>Test type</strong></td><td>Stress Test</td></tr>';
+        content += '<tr><td><strong>Duration</strong></td><td>' + durationMinutes + ' minutes</td></tr>';
 
-        // Duration
-        content += '<tr>';
-        content += '<td style="padding: 8px 12px;"><p style="' + this.getFontStyles().emphasisFont + ' margin: 4px 0;"><strong>Duration</strong></p></td>';
-        content += '<td style="padding: 8px 12px;"><p style="' + this.getFontStyles().bodyFont + ' margin: 4px 0;">' + durationMinutes + ' minutes</p></td>';
-        content += '</tr>';
-
-        // Design - static load pattern from environment
-        content += '<tr>';
-        content += '<td style="vertical-align: top; padding: 8px 12px;"><p style="' + this.getFontStyles().emphasisFont + '"><strong>Design</strong></p></td>';
-        content += '<td style="padding: 8px 12px;"><div style="line-height: 1.4;"><p style="' + this.getFontStyles().bodyFont + ' margin: 0;">';
-
-        // Use single load pattern variable from environment
         const loadPattern = process.env.LOAD_PATTERN || 'To simulate the throughput in Five steps, starts with 1 req/sec for 6 mins then increased to 2 req/sec for the next 6 mins, and finally reaching to 5 req/sec for last 6 mins.';
-
-        // Highlight any text containing "req/sec" with colored styling
-        const highlightedPattern = loadPattern.replace(/(\d+(?:\.\d+)?\s+req\/sec)/g, '<span style="color: #FF5630; font-weight: bold; background-color: #FFEBE6; padding: 2px 6px; border-radius: 3px;">$1</span>');
-
-        content += highlightedPattern + '</p></div></td>';
-        content += '</tr>';
+        content += '<tr><td><strong>Design</strong></td><td>' + this.stripInlineStyles(loadPattern.replace(/(\d+(?:\.\d+)?\s+req\/sec)/g, '<strong>$1</strong>')) + '</td></tr>';
 
         content += '</tbody></table>';
-
+        content += '</ac:rich-text-body>';
+        content += '</ac:structured-macro>';
         return content;
     }
 
@@ -1316,21 +1252,14 @@ class ConfluenceReportGenerator {
             return '';
         }
 
-        let content = '<h2 style="' + this.getFontStyles().headerFont + ' color: #172B4D; border-bottom: 3px solid #0052CC; padding-bottom: 8px; margin-top: 30px; font-weight: bold;"><span style="background-color: #0052CC; color: white; padding: 4px 12px; border-radius: 3px;">🔧 Kubernetes Pod Metrics</span></h2>';
+        // Panel macro for Pod Metrics - Cloud compatible
+        let content = '<ac:structured-macro ac:name="panel" ac:schema-version="1">';
+        content += '<ac:parameter ac:name="titleBGColor">#0052CC</ac:parameter>';
+        content += '<ac:parameter ac:name="titleColor">#FFFFFF</ac:parameter>';
+        content += '<ac:parameter ac:name="title">🔧 Kubernetes Pod Metrics</ac:parameter>';
+        content += '<ac:rich-text-body>';
 
-        // Pod summary badges
-        content += '<div style="background-color: #F4F5F7; padding: 15px 20px; margin: 15px 0; border-radius: 3px;">';
-        content += '<table style="width: 100%; border: none;"><tbody><tr>';
-        content += '<td style="border: none; padding: 8px;">';
-        content += '<span style="background-color: #00875A; color: white; padding: 8px 16px; border-radius: 3px; font-weight: 600; font-size: 16px; display: inline-block;">';
-        content += `📦 ${containerData.summary.runningPods.current} Pods Running</span>`;
-        content += '</td>';
-        content += '<td style="border: none; padding: 8px;">';
-        content += '<span style="background-color: #0052CC; color: white; padding: 8px 16px; border-radius: 3px; font-weight: 600; font-size: 16px; display: inline-block;">';
-        content += `🔧 ${containerData.summary.runningContainers.current} Containers</span>`;
-        content += '</td>';
-        content += '<td style="border: none; padding: 8px;">';
-        // Calculate restarts only during monitoring window
+        // Pod summary badges - use status macros
         const restartTiming = this.analyzeRestartTiming(containerData);
         const windowRestarts = containerData.podMetrics.filter(pod => {
             const podTiming = restartTiming[pod.podName];
@@ -1338,12 +1267,13 @@ class ConfluenceReportGenerator {
                 (podTiming && podTiming.duringWindow !== false);
         }).reduce((sum, pod) => sum + (pod.restarts || 0), 0);
 
-        const restartColor = windowRestarts === 0 ? '#00875A' : '#FF5630';
-        content += `<span style="background-color: ${restartColor}; color: white; padding: 8px 16px; border-radius: 3px; font-weight: 600; font-size: 16px; display: inline-block;">`;
-        content += `🔄 ${windowRestarts} Restarts</span>`;
-        content += '</td>';
-        content += '</tr></tbody></table>';
-        content += '</div>';
+        content += '<p>';
+        content += this.statusMacro('Green', `📦 ${containerData.summary.runningPods.current} Pods Running`);
+        content += ' ';
+        content += this.statusMacro('Blue', `🔧 ${containerData.summary.runningContainers.current} Containers`);
+        content += ' ';
+        content += this.statusMacro(windowRestarts === 0 ? 'Green' : 'Red', `🔄 ${windowRestarts} Restarts`);
+        content += '</p>';
 
         // Pod details table - filter out cronjob pods with zero metrics
         const activePods = containerData.podMetrics.filter(pod => {
@@ -1358,33 +1288,34 @@ class ConfluenceReportGenerator {
         });
 
         if (activePods.length > 0) {
-            content += '<h3 style="' + this.getFontStyles().headerFont + ' margin-top: 25px; font-weight: bold;">Pod Resource Usage</h3>';
+            content += '<h3>Pod Resource Usage</h3>';
             content += '<table data-table-width="1200">';
             content += '<colgroup><col width="400"/><col width="200"/><col width="200"/><col width="200"/><col width="200"/></colgroup>';
-            content += '<tbody>';
-            content += '<tr>';
-            content += '<th><p style="' + this.getFontStyles().tableFont + ' font-weight: 600;"><strong>POD NAME</strong></p></th>';
-            content += '<th><p style="' + this.getFontStyles().tableFont + ' font-weight: 600;"><strong>AVG CPU (%)</strong></p></th>';
-            content += '<th><p style="' + this.getFontStyles().tableFont + ' font-weight: 600;"><strong>MAX CPU (%)</strong></p></th>';
-            content += '<th><p style="' + this.getFontStyles().tableFont + ' font-weight: 600;"><strong>AVG MEMORY (%)</strong></p></th>';
-            content += '<th><p style="' + this.getFontStyles().tableFont + ' font-weight: 600;"><strong>MAX MEMORY (%)</strong></p></th>';
-            content += '</tr>';
+            content += '<thead><tr>';
+            content += '<th><strong>POD NAME</strong></th>';
+            content += '<th><strong>AVG CPU (%)</strong></th>';
+            content += '<th><strong>MAX CPU (%)</strong></th>';
+            content += '<th><strong>AVG MEMORY (%)</strong></th>';
+            content += '<th><strong>MAX MEMORY (%)</strong></th>';
+            content += '</tr></thead><tbody>';
 
             activePods.forEach(pod => {
                 content += '<tr>';
-                content += `<td><p style="${this.getFontStyles().tableFont}"><code>${pod.podName}</code></p></td>`;
-                content += `<td><p style="${this.getFontStyles().tableFont}">${pod.avgCpuPct ? pod.avgCpuPct.toFixed(2) : '0.00'}</p></td>`;
-                content += `<td><p style="${this.getFontStyles().tableFont}">${pod.maxCpuPct ? pod.maxCpuPct.toFixed(2) : '0.00'}</p></td>`;
-                content += `<td><p style="${this.getFontStyles().tableFont}">${pod.avgMemoryPct ? pod.avgMemoryPct.toFixed(2) : '0.00'}</p></td>`;
-                content += `<td><p style="${this.getFontStyles().tableFont}">${pod.maxMemoryPct ? pod.maxMemoryPct.toFixed(2) : '0.00'}</p></td>`;
+                content += `<td><code>${pod.podName}</code></td>`;
+                content += `<td>${pod.avgCpuPct ? pod.avgCpuPct.toFixed(2) : '0.00'}</td>`;
+                content += `<td>${pod.maxCpuPct ? pod.maxCpuPct.toFixed(2) : '0.00'}</td>`;
+                content += `<td>${pod.avgMemoryPct ? pod.avgMemoryPct.toFixed(2) : '0.00'}</td>`;
+                content += `<td>${pod.maxMemoryPct ? pod.maxMemoryPct.toFixed(2) : '0.00'}</td>`;
                 content += '</tr>';
             });
 
             content += '</tbody></table>';
         } else {
-            content += '<p style="' + this.getFontStyles().bodyFont + ' margin-top: 20px;">No active service pods found with resource metrics to display.</p>';
+            content += '<p>No active service pods found with resource metrics to display.</p>';
         }
 
+        content += '</ac:rich-text-body>';
+        content += '</ac:structured-macro>';
         return content;
     }
 
@@ -1419,7 +1350,6 @@ class ConfluenceReportGenerator {
         content += '<ac:structured-macro ac:name="panel" ac:schema-version="1">';
         content += '<ac:parameter ac:name="borderStyle">dashed</ac:parameter>';
         content += '<ac:parameter ac:name="borderColor">#ccc</ac:parameter>';
-        content += '<ac:parameter ac:name="bgColor">#f4f5f7</ac:parameter>';
         content += '<ac:rich-text-body>';
         content += '<p><strong>Analysis Period:</strong> ' + this.formatTimeRange(data.timeRange) + '</p>';
         content += '<p><strong>Baseline Comparison:</strong> Previous 24 hours</p>';
@@ -1511,14 +1441,16 @@ ${content}
                 // Update existing page
                 console.log(`📝 Updating existing page: ${title} (ID: ${existingPage.id}, Version: ${existingPage.version.number})`);
                 const updatedPage = await this.updatePage(existingPage.id, title, content, existingPage.version.number + 1, space);
+                const reportUrl = `${this.confluenceConfig.baseUrl}/wiki${updatedPage._links.webui}`;
                 console.log(`✅ Updated Confluence page: ${title}`);
-                console.log(`🔗 View at: ${this.confluenceConfig.baseUrl}/wiki${updatedPage._links.webui}`);
+                console.log(`\nView the updated report: [${title}](${reportUrl})\n`);
             } else {
                 // Create new page
                 console.log(`📄 Creating new report page: ${title}`);
                 const newPage = await this.createPage(title, content, space);
+                const reportUrl = `${this.confluenceConfig.baseUrl}/wiki${newPage._links.webui}`;
                 console.log(`✅ Created new Confluence page under SRP-Performance-Reports: ${title}`);
-                console.log(`🔗 View at: ${this.confluenceConfig.baseUrl}/wiki${newPage._links.webui}`);
+                console.log(`\nView the updated report: [${title}](${reportUrl})\n`);
             }
         } catch (error) {
             console.error('❌ Failed to upload to Confluence:', error.message);
@@ -1853,8 +1785,10 @@ async function main() {
     console.log('\n✅ Report generation completed!');
 }
 
-// Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run if called directly (cross-platform: Windows paths differ from import.meta.url)
+const __filename = fileURLToPath(import.meta.url);
+const isMain = process.argv[1] && (process.argv[1] === __filename || process.argv[1].endsWith('confluenceReportGenerator.js'));
+if (isMain) {
     main().catch(error => {
         console.error('❌ Error:', error.message);
         process.exit(1);

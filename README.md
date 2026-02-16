@@ -24,8 +24,8 @@ node index.js auto-report --from 'Feb 3, 12:33 am' --to 'Feb 3, 12:36 am' --serv
 - Node.js (v14 or higher)
 - npm
 - Datadog API access
-- Confluence API access
-- GitHub repository for Pages hosting
+- **Confluence Cloud** account with API access
+- GitHub repository with Pages enabled
 
 ### 1. Install Dependencies
 ```bash
@@ -58,7 +58,11 @@ ENV=staging
 LOAD_PATTERN=To simulate the throughput in Five steps, starts with 1 req/sec for 6 mins then increased to 2 req/sec for the next 6 mins, and finally reaching to 5 req/sec for last 6 mins.
 ```
 
-⚠️ **Important**: Never commit the `.env` file to version control as it contains sensitive API keys.
+⚠️ **Important Notes:**
+- Never commit the `.env` file to version control as it contains sensitive API keys
+- Ensure there are **no extra spaces** in environment variable values (e.g., `URL=https://example.com` not `URL= https://example.com`)
+- The `GITHUB_PAGES_BASE_URL` and `GITHUB_REPO_NAME` are used to dynamically generate report URLs
+- URLs are generated at runtime, so changes to `.env` take effect immediately on next upload
 
 ## Features
 
@@ -83,8 +87,9 @@ LOAD_PATTERN=To simulate the throughput in Five steps, starts with 1 req/sec for
 - **Professional Styling**: Consistent branding across both formats
 
 ### ✅ Professional Confluence Integration
-- Auto-uploads formatted reports to Confluence
-- Clean, professional styling with badges and color coding
+- Auto-uploads formatted reports to Confluence Cloud
+- **Confluence Cloud Compatible**: Uses native macros (panel, status, info, tip, warning, note)
+- **No Inline CSS**: Fully compatible with Confluence Cloud's strict content policy
 - Expandable sections for individual endpoints
 - Interactive charts embedded natively
 - Automatic page creation or updates (versioned)
@@ -98,9 +103,11 @@ LOAD_PATTERN=To simulate the throughput in Five steps, starts with 1 req/sec for
 
 ### 🔧 GitHub Pages Integration
 - **Automatic Deployment**: Reports deploy to GitHub Pages instantly
-- **Environment Variables**: Configurable GitHub Pages URL
+- **Environment Variables**: Fully configurable GitHub Pages base URL and repo name
+- **Dynamic URL Generation**: URLs generated from `.env` configuration at runtime
 - **Main Branch Hosting**: Direct deployment from main branch
 - **Dual File Strategy**: Service-specific + generic filenames
+- **No Hardcoded URLs**: All GitHub Pages URLs read from environment variables
 
 ## Quick Start
 
@@ -146,19 +153,24 @@ node index.js generate-html
 
 ### Confluence Report Sections
 
+**Note**: All sections use Confluence Cloud native macros for compatibility
+
 #### 📊 Header
-- **Service Badge**: Blue clickable badge linking to Datadog dashboard
-- **Environment Badge**: Green badge (STAGING/PRODUCTION)
+- **Service Name**: Clickable HTML link to Datadog dashboard (displays full service name)
+- **Environment Badge**: Green status macro (STAGING/PRODUCTION)
+- **Macro Used**: Standard `<table>` layout with HTML links
 
 #### 🎯 Objective
-Brief description of performance testing goals
+- Brief description of performance testing goals and methodology
+- **Macro Used**: `panel` (blue header with info content)
 
 #### 📋 Test Scope & Design
-- **Start Time**: Auto-extracted from metrics
-- **End Time**: Auto-extracted from metrics
+- **Test Environment**: Auto-extracted from configuration
+- **Test Execution time**: Auto-extracted from metrics (optimized column width for single-line display)
 - **Test Type**: Stress Test (configurable)
 - **Duration**: Auto-calculated
-- **Design**: Load pattern description (currently static)
+- **Design**: Load pattern description with highlighted request rates
+- **Macro Used**: `panel` (blue header) with clean table layout
 
 #### 📊 Endpoint Performance Summary
 Sortable table with:
@@ -169,16 +181,25 @@ Sortable table with:
 - Request Rate
 - Errors
 - Error Rate
+- **Macro Used**: `panel` (blue header) with `info` macro for table description
 
 #### 📈 P95 Latency Time Series Analysis
-- Scatter plot showing P95 vs Request Rate
-- Download link to interactive HTML report
+- Download link to interactive HTML report (Confluence attachment)
+- View in Browser link (GitHub Pages)
+- **Macro Used**: `panel` (blue header) with `note` macro for download instructions
+
+#### 💡 Overall Observations & Recommendations
+- Performance status badge (color-coded based on findings)
+- Key findings with bullet points
+- Actionable recommendations
+- **Macro Used**: `panel` (purple header) with `status` macro for performance badge
 
 #### 📊 Individual Endpoint Time Series
 Expandable sections for each endpoint:
 - P95 Latency chart over time (700px width)
 - Request Rate chart over time (700px width)
 - Both charts with 280px height for optimal Confluence fit
+- **Macro Used**: `expand` macro for collapsible endpoint sections
 
 ### Interactive HTML Features
 - **Scatter Plot**: Visualize latency vs request rate correlation
@@ -269,11 +290,23 @@ flowchart TD
 - **Git Integration**: Automatic commit and push to main branch
 - **Error Handling**: Graceful fallbacks and informative error messages
 
-### Color Scheme
-- **Service Badge**: `#0052CC` (Blue background, white text)
-- **Environment Badge**: `#00875A` (Green background, white text)
-- **Section Headers**: `#0052CC` (Blue background, white text)
-- **Charts**: 10 distinct colors for endpoints
+### Confluence Cloud Styling
+
+**Native Macros Used:**
+- **`panel`**: Section headers with colored backgrounds (blue: #0052CC, purple: #632CA6)
+- **`status`**: Colored badges for environment, performance status
+- **`info`**: Informational blue boxes for descriptions
+- **`tip`**: Green boxes for recommendations
+- **`warning`**: Yellow/red boxes for OOM events
+- **`note`**: Gray boxes for download instructions
+- **`expand`**: Collapsible sections for detailed endpoint data
+
+**Styling Details:**
+- **Panel Headers**: Blue (`#0052CC`) for main sections, purple for observations
+- **Status Badges**: Color-coded (Blue for info, Green for environment, Yellow/Red for warnings)
+- **No Inline CSS**: Fully compliant with Confluence Cloud restrictions
+- **Interactive Charts**: 10 distinct colors for endpoint visualization
+- **Clean Tables**: Standard HTML tables without inline styles
 
 ## Key Features
 
@@ -287,10 +320,12 @@ flowchart TD
 - Service-specific endpoints detected automatically
 
 ### ✅ Professional Styling
-- Confluence Storage Format (XHTML) compliant
-- Consistent badge styling across all sections
-- Bold headers with color-coded badges
-- Proper chart sizing (700px width) for page fit
+- **Confluence Cloud Native**: Uses only approved Confluence macros
+- **Storage Format (XHTML)**: Fully compliant with Confluence Cloud standards
+- **Macro-Based Design**: Panel, status, info, tip, warning, and note macros
+- **Consistent Branding**: Color-coded sections without inline CSS
+- **Responsive Tables**: Optimized column widths for readability
+- **Proper Chart Sizing**: 700px width charts for optimal page fit
 
 ### ✅ Error Handling
 - Validates configuration before running
@@ -367,10 +402,12 @@ node index.js auto-report --from 'Jan 13, 1:25 pm' --to 'Jan 13, 1:56 pm' --serv
 - Design Pattern: Currently shows "1 → 2 → 5 req/sec" static pattern
 - These could be made dynamic based on actual load pattern analysis
 
-### Confluence Constraints
-- Some HTML styling not supported in macro titles
-- Chart width optimization needed for different page layouts
-- Attachments replace previous versions (not versioned)
+### Confluence Cloud Constraints
+- **No Inline CSS**: Confluence Cloud strips all inline CSS styles
+- **Macro-Only Styling**: Must use native Confluence macros (panel, status, info, etc.)
+- **Status Macro Limitations**: Character limits and cannot be made clickable directly
+- **Chart Width**: Optimized to 700px for best page fit
+- **Attachments**: Replace previous versions (not versioned independently)
 
 ### Datadog API
 - Rate limits apply to API calls
@@ -397,19 +434,78 @@ node index.js auto-report --from 'Jan 13, 1:25 pm' --to 'Jan 13, 1:56 pm' --serv
 - **API Rate Limiting**: Handles Datadog API constraints gracefully
 - **Security**: Sensitive credentials stored in .env (never committed)
 
+## Confluence Cloud Migration
+
+### ⚠️ Important: Confluence Cloud Compatibility
+
+This system is **fully compatible with Confluence Cloud**, which has stricter content policies than Confluence Server:
+
+**Key Changes:**
+- ✅ **No Inline CSS**: All inline CSS styles have been removed
+- ✅ **Native Macros Only**: Uses Confluence-approved macros (`panel`, `status`, `info`, `tip`, `warning`, `note`)
+- ✅ **Service Name**: Clickable HTML link (blue by default, without custom background)
+- ✅ **Panel Macros**: All section headers use panel macros with colored backgrounds
+- ✅ **Status Badges**: Environment and performance status badges use native status macros
+- ✅ **Table Formatting**: Clean table layouts without inline styles
+
+**Migration Details:**
+- **Service Link**: Uses standard HTML `<a>` tag (Confluence auto-styles links in blue)
+- **Sections**: Each section wrapped in `panel` macro with colored headers
+- **Info Boxes**: Uses `info`, `tip`, `warning`, and `note` macros for different content types
+- **No Background Colors in Content**: Only panel headers have background colors
+
 ## Current Status
 
-**Version**: v2.0 (Production Ready)  
+**Version**: v2.1 (Confluence Cloud Compatible)  
 **Last Updated**: February 2026  
 **Status**: ✅ Fully Automated End-to-End System
 
 ### Recent Enhancements
-- ✅ Complete single-command automation
-- ✅ GitHub Pages integration with environment variables
-- ✅ Dual-button Confluence reports (Download + View in Browser)
-- ✅ Service-specific URL generation  
-- ✅ Main branch deployment (no gh-pages needed)
-- ✅ Improved error handling and git conflict resolution
+- ✅ **Confluence Cloud Migration**: Removed all inline CSS, using native macros only
+- ✅ **Environment Variable URLs**: GitHub Pages base URL configurable via `.env`
+- ✅ **Complete single-command automation**
+- ✅ **GitHub Pages integration** with dynamic URL generation
+- ✅ **Dual-button Confluence reports** (Download + View in Browser)
+- ✅ **Service-specific URL generation**  
+- ✅ **Main branch deployment** (no gh-pages needed)
+- ✅ **Improved error handling** and git conflict resolution
+- ✅ **Table Column Optimization**: Test Execution time displays on single line
+
+## Troubleshooting
+
+### GitHub Pages URL Not Updating
+
+**Problem**: The "View in Browser" link shows an old GitHub Pages URL
+
+**Solution**:
+1. Check your `.env` file has the correct values:
+   ```env
+   GITHUB_PAGES_BASE_URL=https://your-username.github.io
+   GITHUB_REPO_NAME=your-repo-name
+   ```
+2. Ensure there are **no extra spaces** in the `.env` values
+3. **Clear browser cache** (Ctrl+Shift+R or Ctrl+F5)
+4. Try opening in **Incognito/Private window**
+5. Verify the Confluence page version number has incremented
+
+### Service Name Not Clickable
+
+**Problem**: Service name in report header is not a link
+
+**Solution**:
+- The service name uses standard HTML `<a>` tag
+- Confluence Cloud will automatically style it in blue
+- **Note**: Blue background badge is not possible without inline CSS (Cloud restriction)
+- The link is fully functional even without custom styling
+
+### Test Execution Time Wrapping
+
+**Problem**: "Test Execution time" wraps to multiple lines in Test Scope table
+
+**Solution**:
+- Column width is set to 350px (optimized for single-line display)
+- If still wrapping, check if custom Confluence page width is affecting layout
+- Current configuration supports date ranges like "Jan 9, 1:53 PM – Jan 9, 2:24 PM"
 
 ## Dependencies
 

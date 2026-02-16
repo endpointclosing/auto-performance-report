@@ -56,8 +56,9 @@ async function deploy() {
     }
 
     // Show URLs
-    const githubBaseUrl = process.env.GITHUB_PAGES_BASE_URL || 'https://stunning-barnacle-wre1op1.pages.github.io';
-    const baseUrl = `${githubBaseUrl}/html-reports/`;
+    const githubBaseUrl = process.env.GITHUB_PAGES_BASE_URL || 'https://endpointclosing.github.io';
+    const githubRepoName = process.env.GITHUB_REPO_NAME || 'auto-performance-report';
+    const baseUrl = `${githubBaseUrl}/${githubRepoName}/html-reports/`;
 
     console.log('\n' + '='.repeat(70));
     console.log('✅ DEPLOYMENT SUCCESSFUL!');
