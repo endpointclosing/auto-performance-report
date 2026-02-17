@@ -1431,7 +1431,6 @@ ${content}
     async uploadToConfluence(content, title, spaceKey = null) {
         try {
             const space = spaceKey || this.confluenceConfig.spaceKey;
-            const srpFolderId = '2485485885';
 
             // Check if a page with the same title already exists
             console.log(`🔍 Checking if page exists: ${title}`);
@@ -1542,9 +1541,6 @@ ${content}
     }
 
     async createPage(title, content, spaceKey) {
-        // Use the specific SRP-Performance-Reports folder with known ID
-        const srpFolderId = '2485485885';
-
         const pageData = {
             type: 'page',
             title: title,
@@ -1557,9 +1553,17 @@ ${content}
             }
         };
 
-        // Set the specific parent folder
-        pageData.ancestors = [{ id: srpFolderId }];
-        console.log(`📁 Creating page under SRP-Performance-Reports folder (ID: ${srpFolderId})`);
+        // Check if parent folder ID is configured in .env
+        const parentFolderId = process.env.CONFLUENCE_PARENT_FOLDER_ID;
+        
+        if (parentFolderId) {
+            // Create page under specific parent folder
+            pageData.ancestors = [{ id: parentFolderId }];
+            console.log(`📁 Creating page under parent folder (ID: ${parentFolderId})`);
+        } else {
+            // Create page at root of space
+            console.log(`📄 Creating page at root of space: ${spaceKey}`);
+        }
 
         const response = await this.confluenceApi.post('/content', pageData);
         return response.data;
@@ -1579,6 +1583,33 @@ ${content}
                 }
             }
         };
+
+        // Check if parent folder ID is configured in .env and update parent if needed
+        const parentFolderId = process.env.CONFLUENCE_PARENT_FOLDER_ID;
+        
+        if (parentFolderId) {
+            // Get current page info to check if parent needs updating
+            try {
+                const currentPageResponse = await this.confluenceApi.get(`/content/${pageId}`, {
+                    params: { expand: 'ancestors' }
+                });
+                
+                const currentPage = currentPageResponse.data;
+                const currentParentId = currentPage.ancestors && currentPage.ancestors.length > 0 
+                    ? currentPage.ancestors[currentPage.ancestors.length - 1].id 
+                    : null;
+                
+                // If parent is different, update it
+                if (currentParentId !== parentFolderId) {
+                    console.log(`📦 Moving page from parent ${currentParentId || 'root'} to ${parentFolderId}`);
+                    pageData.ancestors = [{ id: parentFolderId }];
+                }
+            } catch (error) {
+                console.warn(`⚠️ Could not check current parent: ${error.message}`);
+                // Still try to set the parent
+                pageData.ancestors = [{ id: parentFolderId }];
+            }
+        }
 
         const response = await this.confluenceApi.put(`/content/${pageId}`, pageData);
         return response.data;
