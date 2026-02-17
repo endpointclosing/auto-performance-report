@@ -1,5 +1,6 @@
 import { execSync } from 'child_process';
 import fs from 'fs';
+import path from 'path';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -7,19 +8,56 @@ dotenv.config();
 
 console.log('🚀 Deploying Reports to Main Branch\n');
 
-function runCommand(command, description) {
-    try {
-        console.log(`⏳ ${description}...`);
-        execSync(command, { stdio: 'inherit' });
-        console.log(`✅ ${description} - Done\n`);
-        return true;
-    } catch (error) {
-        console.error(`❌ ${description} - Failed`);
-        return false;
+function cleanGitLocks() {
+    const locks = [
+        '.git/index.lock',
+        '.git/COMMIT_EDITMSG.lock',
+        '.git/HEAD.lock'
+    ];
+    
+    locks.forEach(lockFile => {
+        try {
+            if (fs.existsSync(lockFile)) {
+                fs.unlinkSync(lockFile);
+                console.log(`🧹 Removed ${lockFile}`);
+            }
+        } catch (error) {
+            // Silently ignore - file might be in use
+        }
+    });
+}
+
+function runCommand(command, description, retries = 3) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            if (attempt > 1) {
+                console.log(`   🔄 Retry ${attempt}/${retries}...`);
+                // Clean locks before retry
+                cleanGitLocks();
+                // Wait a bit before retry
+                execSync('timeout /t 2 /nobreak', { stdio: 'ignore' });
+            } else {
+                console.log(`⏳ ${description}...`);
+            }
+            
+            execSync(command, { stdio: 'inherit' });
+            console.log(`✅ ${description} - Done\n`);
+            return true;
+        } catch (error) {
+            if (attempt === retries) {
+                console.error(`❌ ${description} - Failed after ${retries} attempts`);
+                return false;
+            }
+        }
     }
+    return false;
 }
 
 async function deploy() {
+    // Clean any existing Git locks first
+    console.log('🧹 Cleaning Git locks...\n');
+    cleanGitLocks();
+    
     // Check if html-reports folder exists and has files
     if (!fs.existsSync('./html-reports')) {
         console.error('❌ html-reports folder not found!');
@@ -38,20 +76,29 @@ async function deploy() {
     reportFiles.forEach(file => console.log(`   • ${file}`));
     console.log('\n');
 
+    // Reset Git index first to avoid stale state
+    console.log('🔄 Resetting Git index...\n');
+    runCommand('git reset', 'Reset Git index', 1);
+
     // Add html-reports folder to git
     console.log('💾 Adding html-reports to main branch...\n');
-    runCommand('git add -f html-reports/', 'Adding html-reports folder');
+    if (!runCommand('git add -f html-reports/', 'Adding html-reports folder', 3)) {
+        console.error('❌ Failed to add files. Skipping deployment.');
+        process.exit(1);
+    }
 
     const date = new Date().toISOString().split('T')[0];
     const commitMessage = `Update service reports - ${date}`;
 
-    if (!runCommand(`git commit -m "${commitMessage}"`, 'Commit changes')) {
+    if (!runCommand(`git commit -m "${commitMessage}"`, 'Commit changes', 3)) {
         console.log('⚠️  No changes to commit (reports may be up to date)\n');
     }
 
     // Push to main branch
     console.log('🚀 Pushing to main branch...\n');
-    if (!runCommand('git push origin main', 'Push to GitHub')) {
+    if (!runCommand('git push origin main', 'Push to GitHub', 3)) {
+        console.error('❌ Failed to push to GitHub');
+        console.log('💡 Check your GitHub credentials and network connection');
         process.exit(1);
     }
 

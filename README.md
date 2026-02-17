@@ -45,6 +45,8 @@ CONFLUENCE_BASE_URL=https://yourcompany.atlassian.net
 CONFLUENCE_USER_EMAIL=your_email@company.com
 CONFLUENCE_API_TOKEN=your_confluence_api_token
 CONFLUENCE_SPACE_KEY=your_space_key
+# Optional: Parent folder ID for organizing reports (if not set, pages created at root)
+CONFLUENCE_PARENT_FOLDER_ID=your_parent_folder_id
 
 # GitHub Pages Configuration
 GITHUB_PAGES_BASE_URL=https://your-username.github.io
@@ -63,6 +65,40 @@ LOAD_PATTERN=To simulate the throughput in Five steps, starts with 1 req/sec for
 - Ensure there are **no extra spaces** in environment variable values (e.g., `URL=https://example.com` not `URL= https://example.com`)
 - The `GITHUB_PAGES_BASE_URL` and `GITHUB_REPO_NAME` are used to dynamically generate report URLs
 - URLs are generated at runtime, so changes to `.env` take effect immediately on next upload
+
+### 3. Confluence Parent Folder Configuration (Optional)
+
+By default, reports are created at the root of your Confluence space. To organize reports in a specific folder:
+
+#### Finding Your Parent Folder ID
+
+1. **Navigate to your target folder** in Confluence (e.g., "Performance-Testing" > "SRP-Performance-Reports")
+2. **Open the folder page** and look at the URL:
+   ```
+   https://yourcompany.atlassian.net/wiki/spaces/fa/pages/2570715685/SRP-Performance-Reports
+                                                               ^^^^^^^^^^
+                                                               This is your folder ID
+   ```
+3. **Copy the page ID** (the number in the URL)
+4. **Add to `.env` file**:
+   ```env
+   CONFLUENCE_PARENT_FOLDER_ID=2570715685
+   ```
+
+#### How It Works
+
+- **New Reports**: Automatically created under the specified parent folder
+- **Existing Reports**: Automatically moved to the correct folder when updated
+- **No Configuration**: Reports created at root of the Confluence space if not set
+
+**Example Structure:**
+```
+📁 Performance-Testing (page ID: 851247125)
+  └── 📁 SRP-Performance-Reports (page ID: 2570715685) ← Set this as CONFLUENCE_PARENT_FOLDER_ID
+      ├── 📄 Operator Agent Service Performance Report - Jan 16, 2026 4:14 PM
+      ├── 📄 Stardust Task Service Performance Report - Jan 9, 2026 3:00 PM
+      └── 📄 Stardust Transaction Participant Service Performance Report - Jan 9, 2026 1:53 PM
+```
 
 ## Features
 
@@ -462,6 +498,9 @@ This system is **fully compatible with Confluence Cloud**, which has stricter co
 
 ### Recent Enhancements
 - ✅ **Confluence Cloud Migration**: Removed all inline CSS, using native macros only
+- ✅ **Configurable Parent Folder**: Confluence folder ID parameterized via `.env` file
+- ✅ **Auto-Move Pages**: Existing pages automatically moved to correct folder when updated
+- ✅ **Robust GitHub Deployment**: Automatic Git lock cleanup with retry logic for OneDrive compatibility
 - ✅ **Environment Variable URLs**: GitHub Pages base URL configurable via `.env`
 - ✅ **Complete single-command automation**
 - ✅ **GitHub Pages integration** with dynamic URL generation
@@ -506,6 +545,45 @@ This system is **fully compatible with Confluence Cloud**, which has stricter co
 - Column width is set to 350px (optimized for single-line display)
 - If still wrapping, check if custom Confluence page width is affecting layout
 - Current configuration supports date ranges like "Jan 9, 1:53 PM – Jan 9, 2:24 PM"
+
+### Report Not Appearing in Correct Folder
+
+**Problem**: Report created at root instead of in the specified parent folder
+
+**Solution**:
+1. **Verify folder ID**: Check that `CONFLUENCE_PARENT_FOLDER_ID` in `.env` is correct
+2. **Find folder ID**: Navigate to the folder in Confluence and copy the page ID from the URL:
+   ```
+   https://yourcompany.atlassian.net/wiki/spaces/fa/pages/2570715685/FolderName
+                                                               ^^^^^^^^^^
+   ```
+3. **Check folder exists**: Ensure the parent folder page exists in the specified Confluence space
+4. **Re-run upload**: The next report upload will automatically move the page to the correct folder
+
+**Note**: 
+- If `CONFLUENCE_PARENT_FOLDER_ID` is not set or empty, pages are created at the root of the space
+- Existing pages are automatically moved when updated with a new parent folder configured
+
+### GitHub Deployment Failing with Lock File Errors
+
+**Problem**: Deployment to GitHub Pages fails with "Unable to create index.lock" or "File exists" errors
+
+**Solution**:
+The deployment script now automatically handles Git lock files, especially common when the repository is in OneDrive:
+
+1. **Automatic Cleanup**: Lock files are automatically removed before Git operations
+2. **Retry Logic**: Failed operations are retried up to 3 times with lock cleanup between attempts
+3. **OneDrive Compatibility**: Built-in delays allow OneDrive sync to complete
+
+**If issues persist**:
+1. Close any Git GUI tools (GitHub Desktop, VS Code Source Control, etc.)
+2. Wait a few seconds for OneDrive to sync
+3. Re-run the command - the retry logic will handle transient lock issues
+
+**Technical Details**:
+- The script automatically cleans `.git/index.lock`, `.git/COMMIT_EDITMSG.lock`, and `.git/HEAD.lock`
+- Git index is reset before adding new files to avoid stale state
+- All Git operations include retry logic with exponential backoff
 
 ## Dependencies
 
