@@ -19,7 +19,7 @@
     "confluence-summary": "node src/scripts/confluenceReport.js --template summary --upload"
   },
   "dependencies": {
-    "axios": "^1.6.0",
+    "axios": "^1.13.5",
     "dotenv": "^16.3.0"
   },
   "author": "",
